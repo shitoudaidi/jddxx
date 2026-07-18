@@ -6,7 +6,7 @@ An open-source Windows desktop Agent with a Jarvis-style control room, DeepSeek 
 
 ### Option A: install the release
 
-1. Download `Jarvis-Setup-*.exe` from the GitHub Releases page.
+1. Download `Jarvis-Setup-*.exe` from this repository's GitHub Releases page when a release is available.
 2. Run the installer and launch `Jarvis` from the desktop or Start menu.
 3. On first launch, open Settings and configure DeepSeek plus ASR credentials.
 4. For wake voice, say `嗨，贾维斯` or `Hello Jarvis` after the microphone status shows ready.
@@ -16,8 +16,8 @@ An open-source Windows desktop Agent with a Jarvis-style control room, DeepSeek 
 Requirements: Windows 10/11, Node.js 20+, Git, and a working microphone.
 
 ```powershell
-git clone https://github.com/YOUR_ACCOUNT/jarvis-local-agent.git
-cd jarvis-local-agent
+git clone https://github.com/shitoudaidi/jddxx.git
+cd jddxx
 Copy-Item config.example.json config.json
 notepad config.json
 npm.cmd install
@@ -37,6 +37,16 @@ Never commit `config.json`. It is intentionally ignored by Git.
 - `voice.aliyunApiKey`: DashScope key when using Aliyun ASR
 - `tts.ttsProvider`: `jarvis` for the bundled Jarvis voice
 
+### AI HOT news
+
+The default AI HOT endpoint is the official public feed:
+
+```text
+https://aihot.virxact.com/api/public/items
+```
+
+It does not require an API key. The endpoint and an optional key can be changed in Jarvis Settings under **AI HOT News**. Only users who switch to a compatible authenticated endpoint need to obtain and enter that service's API key. News shown in the workbench is loaded from the configured endpoint and retains the original article URL.
+
 The Jarvis Piper voice model is not committed because it is large. Install it once with:
 
 ```powershell
@@ -46,6 +56,14 @@ npm.cmd run probe:jarvis-tts
 
 The model is stored locally under `models/jarvis` and is excluded from Git.
 
+Grok Build engineering mode is optional. Source users can install its CLI locally with:
+
+```powershell
+npm.cmd run grok:install
+```
+
+The downloaded package is stored under the ignored `tools/grok-cli` directory and is not committed.
+
 ## Build and Release
 
 ```powershell
@@ -54,7 +72,7 @@ npm.cmd run pack        # unpacked Windows app for local testing
 npm.cmd run dist        # installer under dist/
 ```
 
-The packaged app stores user data under `%LOCALAPPDATA%\JarvisLocalAgent`; source-mode development data is kept in the ignored `data/` directory. Project workspaces and Agent runtime files are kept on `H:` by the desktop configuration.
+On the maintainer's computer, Jarvis continues to use `H:\Jarvis` when that directory exists. On other computers it automatically uses `%LOCALAPPDATA%\JarvisLocalAgent`. Set `JARVIS_HOME` or `JARVIS_USER_DIR` to choose a different location explicitly.
 
 ## Project Layout
 
@@ -150,7 +168,7 @@ npm.cmd run pack
 npm.cmd run dist
 ```
 
-Runtime data is written to `%LOCALAPPDATA%\JarvisLocalAgent` in packaged builds and `data/` during development.
+Runtime data uses `H:\Jarvis\runtime\jarvis` on the maintainer's computer and `%LOCALAPPDATA%\JarvisLocalAgent\runtime\jarvis` elsewhere. Environment variables `JARVIS_HOME` and `JARVIS_USER_DIR` override these defaults.
 
 ## Notes
 

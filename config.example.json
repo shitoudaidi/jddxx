@@ -12,5 +12,8 @@
   },
   "hotspots": {
     "refreshMinutes": 30
+  },
+  "aiHot": {
+    "endpoint": "https://aihot.virxact.com/api/public/items"
   }
 }

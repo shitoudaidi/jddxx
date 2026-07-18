@@ -4,7 +4,6 @@ import { paths } from './paths.js'
 import { nowTimestamp } from './time.js'
 
 export const DEEPSEEK_PROVIDER = 'deepseek'
-export const MINIMAX_PROVIDER = 'minimax'
 export const OPENAI_PROVIDER = 'openai'
 export const QWEN_PROVIDER = 'qwen'
 export const MOONSHOT_PROVIDER = 'moonshot'
@@ -12,7 +11,6 @@ export const ZHIPU_PROVIDER = 'zhipu'
 export const MIMO_PROVIDER = 'mimo'
 
 export const DEFAULT_DEEPSEEK_MODEL = 'deepseek-v4-pro'
-export const DEFAULT_MINIMAX_MODEL = 'MiniMax-M2.7'
 export const DEFAULT_OPENAI_MODEL = 'gpt-4o-mini'
 export const DEFAULT_QWEN_MODEL = 'qwen-turbo'
 export const DEFAULT_MOONSHOT_MODEL = 'moonshot-v1-8k'
@@ -39,19 +37,6 @@ export const DEEPSEEK_MODELS = [
     id: 'deepseek-reasoner',
     label: 'deepseek-reasoner (deprecated 2026/07/24)',
     deprecated: true,
-  },
-]
-
-export const MINIMAX_MODELS = [
-  {
-    id: 'MiniMax-M2.7',
-    label: 'MiniMax-M2.7',
-    deprecated: false,
-  },
-  {
-    id: 'MiniMax-M1',
-    label: 'MiniMax-M1',
-    deprecated: false,
   },
 ]
 
@@ -198,13 +183,6 @@ const PROVIDER_CONFIG = {
     envVar: 'DEEPSEEK_API_KEY',
     models: DEEPSEEK_MODELS,
     defaultModel: DEFAULT_DEEPSEEK_MODEL,
-  },
-  [MINIMAX_PROVIDER]: {
-    label: 'MiniMax',
-    baseURL: 'https://api.minimax.chat/v1',
-    envVar: 'MINIMAX_API_KEY',
-    models: MINIMAX_MODELS,
-    defaultModel: DEFAULT_MINIMAX_MODEL,
   },
   [OPENAI_PROVIDER]: {
     label: 'OpenAI',
@@ -536,16 +514,8 @@ function loadFromEnv() {
       model: normalizeModel(process.env.DEEPSEEK_MODEL, DEEPSEEK_PROVIDER),
     }
   }
-  const minimaxKey = process.env['MINIMAX_API_KEY']
-  if (minimaxKey) {
-    return {
-      provider: MINIMAX_PROVIDER,
-      apiKey: minimaxKey,
-      model: normalizeModel(process.env.MINIMAX_MODEL, MINIMAX_PROVIDER),
-    }
-  }
   for (const [provider, pConfig] of Object.entries(PROVIDER_CONFIG)) {
-    if (provider === DEEPSEEK_PROVIDER || provider === MINIMAX_PROVIDER) continue
+    if (provider === DEEPSEEK_PROVIDER) continue
     const key = process.env[pConfig.envVar]
     if (key) {
       return {
@@ -1223,7 +1193,6 @@ function isValidAliyunAsrKey(value) {
 
 const CHAT_PROVIDERS_WITH_AMBIGUOUS_SK_KEYS = new Set([
   DEEPSEEK_PROVIDER,
-  MINIMAX_PROVIDER,
   OPENAI_PROVIDER,
   MOONSHOT_PROVIDER,
   ZHIPU_PROVIDER,
@@ -1375,7 +1344,6 @@ export const EMBEDDING_PROVIDER_PRESETS = {
   openai:  { baseURL: 'https://api.openai.com/v1',                          defaultModel: 'text-embedding-3-small', defaultDims: 1536 },
   qwen:    { baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',  defaultModel: 'text-embedding-v2',      defaultDims: 1536 },
   zhipu:   { baseURL: 'https://open.bigmodel.cn/api/paas/v4',               defaultModel: 'embedding-3',            defaultDims: 2048 },
-  minimax: { baseURL: 'https://api.minimax.chat/v1',                        defaultModel: 'embo-01',                defaultDims: 1536 },
   custom:  { baseURL: '',                                                   defaultModel: '',                       defaultDims: 1536 },
 }
 
@@ -1567,7 +1535,6 @@ export function setWebSearchConfig(updates) {
 
 export const __internals = {
   DEEPSEEK_MODELS,
-  MINIMAX_MODELS,
   OPENAI_MODELS,
   QWEN_MODELS,
   MOONSHOT_MODELS,

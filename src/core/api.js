@@ -12,23 +12,21 @@ import { getQuotaStatus } from './quota.js'
 import { isRunning, stopLoop, startLoop } from './control.js'
 import { buildHeartbeatSystemPromptPreview } from './system-prompt-preview.js'
 import { paths } from './paths.js'
-import { config, activate as activateLLM, prepareActivation as prepareLLMActivation, commitPreparedActivation, getActivationStatus, switchModel, saveLLMSettings, setTemperature, setThinking, getMinimaxKey, setMinimaxKey, getSocialConfig, setSocialConfig, getVoiceConfig, setVoiceConfig, getTTSConfig, setTTSConfig, getTTSCredentials, getProviderSummaries, getSecurity, setSecurity, getSeedanceConfig, setSeedanceConfig, getEmbeddingConfig, setEmbeddingConfig, EMBEDDING_PROVIDER_PRESETS, getWebSearchConfig, setWebSearchConfig } from './config.js'
+import { config, activate as activateLLM, prepareActivation as prepareLLMActivation, commitPreparedActivation, getActivationStatus, switchModel, saveLLMSettings, setTemperature, setThinking, getSocialConfig, setSocialConfig, getVoiceConfig, setVoiceConfig, getTTSConfig, setTTSConfig, getTTSCredentials, getProviderSummaries, getSecurity, setSecurity, getSeedanceConfig, setSeedanceConfig, getEmbeddingConfig, setEmbeddingConfig, EMBEDDING_PROVIDER_PRESETS, getWebSearchConfig, setWebSearchConfig } from './config.js'
 import { streamTTS, TTS_PROVIDERS, TTS_VOICES, validateTTSConfig } from './voice/tts-providers.js'
 import { restartConnector } from './social/index.js'
 // manager.js (Whisper local server) removed
-import { replaceProvider } from './providers/registry.js'
 import { persistAppState } from './capabilities/executor.js'
 import { TOOL_SCHEMAS } from './capabilities/schemas.js'
 import { listInstalledTools } from './capabilities/marketplace/index.js'
 import { execGenerateVideo, saveGeneratedVideo, setAIVideoPanelState, getVideoHistory, stripMarkdownForSpeech } from './capabilities/tools/media.js'
-import { MinimaxProvider } from './providers/minimax.js'
 import { handleSocialWebhook, isSocialWebhookPath } from './social/webhooks.js'
 import { getClawbotQR, logoutClawbot } from './social/wechat-clawbot.js'
 import { createCloudASRSession, isCloudASRConfigured } from './voice/cloud-asr.js'
 import { createLocalASRSession } from './voice/local-asr.js'
 import { getVoiceStatus, startVoiceServer, stopVoiceServer, restartVoiceServer } from './voice/manager.js'
 import { getHotspots, setHotspotPanelState, getHotspotPanelState } from './hotspots.js'
-import { getAiNews } from './ai-news.js'
+import { getAiNews, getAiHotConfig, setAiHotConfig } from './ai-news.js'
 import { getWorldcup, setWorldcupPanelState, getWorldcupPanelState } from './worldcup.js'
 import { getPersonCard, setPersonCardPanelState, getPersonCardPanelState } from './person-cards.js'
 import { setDocPanelState, getDocPanelState, DOC_TOPICS } from './docs.js'
@@ -1432,6 +1430,18 @@ export function startAPI(port = 3721, { getStateSnapshot = null, onActivated = n
       return
     }
 
+    if (req.method === 'GET' && url.pathname === '/settings/ai-hot') {
+      jsonResponse(res, 200, { ok: true, aiHot: getAiHotConfig() })
+      return
+    }
+
+    if (req.method === 'POST' && url.pathname === '/settings/ai-hot') {
+      readJsonBody(req)
+        .then((body) => jsonResponse(res, 200, { ok: true, aiHot: setAiHotConfig(body) }))
+        .catch((err) => jsonResponse(res, 400, { ok: false, error: err.message }))
+      return
+    }
+
     if (url.pathname === '/hotspot-state') {
       if (req.method === 'GET') {
         jsonResponse(res, 200, { ok: true, state: getHotspotPanelState() })
@@ -2090,25 +2100,6 @@ export function startAPI(port = 3721, { getStateSnapshot = null, onActivated = n
             )
           }
           jsonResponse(res, 200, { ok: true, social: getSocialConfig() })
-        } catch (err) {
-          jsonResponse(res, 400, { ok: false, error: err.message })
-        }
-      })
-      return
-    }
-
-    // POST /settings/minimax — set MiniMax API key
-    if (req.method === 'POST' && url.pathname === '/settings/minimax') {
-      const chunks = []
-      req.on('data', chunk => chunks.push(chunk))
-      req.on('end', () => {
-        try {
-          const { apiKey } = JSON.parse(Buffer.concat(chunks).toString('utf-8') || '{}')
-          const trimmed = String(apiKey || '').trim()
-          if (!trimmed) throw new Error('API key cannot be empty')
-          setMinimaxKey(trimmed)
-          replaceProvider(new MinimaxProvider({ apiKey: trimmed }))
-          jsonResponse(res, 200, { ok: true, configured: true })
         } catch (err) {
           jsonResponse(res, 400, { ok: false, error: err.message })
         }

@@ -7,7 +7,11 @@ const { EventEmitter } = require("events");
 const { pathToFileURL } = require("url");
 
 const ROOT = path.resolve(__dirname, "..");
-const JARVIS_HOME = path.resolve(process.env.JARVIS_HOME || "H:\\Jarvis");
+const LOCAL_APP_HOME = path.join(process.env.LOCALAPPDATA || process.env.USERPROFILE || ROOT, "JarvisLocalAgent");
+const DEVELOPMENT_HOME = "H:\\Jarvis";
+const JARVIS_HOME = path.resolve(
+  process.env.JARVIS_HOME || (fs.existsSync(DEVELOPMENT_HOME) ? DEVELOPMENT_HOME : LOCAL_APP_HOME)
+);
 const CORE_ENTRY = path.join(ROOT, "src", "core", "index.js");
 const IS_DESKTOP_PROBE = /^(1|true|yes|on)$/i.test(String(process.env.JARVIS_DESKTOP_PROBE || ""));
 const IS_DESKTOP_CLOSE_PROBE = /^(1|true|yes|on)$/i.test(String(process.env.JARVIS_DESKTOP_CLOSE_PROBE || ""));

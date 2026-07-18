@@ -2066,6 +2066,13 @@ aside.acui-result-layer[data-connected="true"] ~ .news-ticker {
   width: 100%;
 }
 
+.field-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
 .scroll-anchor {
   position: absolute;
   width: 1px;

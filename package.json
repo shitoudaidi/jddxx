@@ -12,6 +12,7 @@
     "build:ui": "vite build --config vite.jarvis.config.mjs",
     "check": "npm run build:ui && node --check electron/main.cjs && node --check electron/preload.cjs && node --check src/core/index.js && node --check src/core/api.js && node --check src/core/grok-build.js && node --check src/core/capabilities/tools/ui.js && node --check src/core/docs.js && node src/core/test-tool-router.js && node scripts/probe-current-tool-surface.cjs && node scripts/probe-news-ticker.cjs && node scripts/probe-engineering-routing.cjs && node scripts/probe-tts-echo-guards.cjs && node scripts/probe-wake-sensitivity.cjs",
     "shortcut:desktop": "node scripts/install-desktop-shortcut.cjs",
+    "grok:install": "node scripts/install-grok-build.cjs",
     "probe:core": "node scripts/probe-core-runtime.cjs",
     "probe:desktop": "node scripts/probe-desktop-e2e.cjs",
     "probe:desktop-close": "node scripts/probe-desktop-close.cjs",

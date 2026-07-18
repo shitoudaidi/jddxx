@@ -848,6 +848,11 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
   const [baseURL, setBaseURL] = useState("");
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState({ text: "", type: "" });
+  const [aiHotEndpoint, setAiHotEndpoint] = useState("https://aihot.virxact.com/api/public/items");
+  const [aiHotApiKey, setAiHotApiKey] = useState("");
+  const [aiHotKeyConfigured, setAiHotKeyConfigured] = useState(false);
+  const [aiHotSaving, setAiHotSaving] = useState(false);
+  const [aiHotFeedback, setAiHotFeedback] = useState({ text: "", type: "" });
   const drawerRef = useRef(null);
   const closeButtonRef = useRef(null);
 
@@ -860,6 +865,14 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
 
   useEffect(() => {
     if (!open) return undefined;
+    fetch(`${api}/settings/ai-hot`)
+      .then(readJson)
+      .then((data) => {
+        if (!data?.aiHot) return;
+        setAiHotEndpoint(data.aiHot.endpoint || "https://aihot.virxact.com/api/public/items");
+        setAiHotKeyConfigured(Boolean(data.aiHot.apiKeyConfigured));
+      })
+      .catch(() => setAiHotFeedback({ text: "无法读取 AI HOT 配置", type: "error" }));
     const previousFocus = document.activeElement;
     const onKeyDown = (event) => {
       if (event.key === "Escape") {
@@ -889,7 +902,7 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
       window.removeEventListener("keydown", onKeyDown);
       previousFocus?.focus?.();
     };
-  }, [onClose, open]);
+  }, [api, onClose, open]);
 
   const saveModel = async () => {
     setSaving(true);
@@ -920,6 +933,48 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
   };
 
   const caps = readiness?.capabilities || {};
+
+  const saveAiHot = async () => {
+    setAiHotSaving(true);
+    setAiHotFeedback({ text: "", type: "" });
+    try {
+      const response = await fetch(`${api}/settings/ai-hot`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify({ endpoint: aiHotEndpoint.trim(), ...(aiHotApiKey ? { apiKey: aiHotApiKey.trim() } : {}) })
+      });
+      const data = await readJson(response);
+      if (!response.ok || data.ok === false) throw new Error(data.error || "保存失败");
+      setAiHotApiKey("");
+      setAiHotKeyConfigured(Boolean(data.aiHot?.apiKeyConfigured));
+      setAiHotFeedback({ text: "AI HOT 资讯源已保存", type: "success" });
+    } catch (error) {
+      setAiHotFeedback({ text: error.message || "保存失败", type: "error" });
+    } finally {
+      setAiHotSaving(false);
+    }
+  };
+
+  const clearAiHotKey = async () => {
+    setAiHotSaving(true);
+    setAiHotFeedback({ text: "", type: "" });
+    try {
+      const response = await fetch(`${api}/settings/ai-hot`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify({ endpoint: aiHotEndpoint.trim(), apiKey: "" })
+      });
+      const data = await readJson(response);
+      if (!response.ok || data.ok === false) throw new Error(data.error || "清除失败");
+      setAiHotApiKey("");
+      setAiHotKeyConfigured(false);
+      setAiHotFeedback({ text: "AI HOT 密钥已清除，当前使用公开接口", type: "success" });
+    } catch (error) {
+      setAiHotFeedback({ text: error.message || "清除失败", type: "error" });
+    } finally {
+      setAiHotSaving(false);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -989,6 +1044,37 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
             <StatusPill compact ok={!!caps.tts?.ready} label="TTS" detail={caps.tts?.provider || "未配置"} />
             <StatusPill compact ok={!!caps.tools?.ready} label="Tools" detail={caps.tools ? `${caps.tools.total || 0}` : ""} />
             <StatusPill compact ok={!!caps.memory?.ready} label="Memory" detail={caps.memory ? `${caps.memory.count || 0}` : ""} />
+          </div>
+
+          <div className="drawer-section">
+            <StatusPill ok label="AI HOT 资讯" detail={aiHotKeyConfigured ? "自定义密钥已配置" : "官方公开接口 · 免 API Key"} />
+            <label className="field">
+              <span>资讯接口地址</span>
+              <input type="url" value={aiHotEndpoint} onChange={(event) => setAiHotEndpoint(event.target.value)} />
+            </label>
+            <label className="field">
+              <span>API Key（可选）</span>
+              <input
+                type="password"
+                autoComplete="off"
+                value={aiHotApiKey}
+                onChange={(event) => setAiHotApiKey(event.target.value)}
+                placeholder={aiHotKeyConfigured ? "已配置，留空则不修改" : "官方接口无需填写"}
+              />
+            </label>
+            <p className="field-note">默认使用 AI HOT 官方公开接口，不需要 API Key。只有切换到需要鉴权的兼容接口时，才需要用户自行申请并填写密钥。</p>
+            <button className="secondary wide" disabled={aiHotSaving} aria-busy={aiHotSaving} onClick={saveAiHot} type="button">
+              {aiHotSaving ? <Loader2 className="spin" size={16} /> : <KeyRound size={16} />}
+              保存 AI HOT 配置
+            </button>
+            {aiHotKeyConfigured ? (
+              <button className="secondary wide" disabled={aiHotSaving} onClick={clearAiHotKey} type="button">清除已配置密钥</button>
+            ) : null}
+            {aiHotFeedback.text ? (
+              <p className={cls("feedback", aiHotFeedback.type === "error" && "error")} role={aiHotFeedback.type === "error" ? "alert" : "status"}>
+                {aiHotFeedback.text}
+              </p>
+            ) : null}
           </div>
 
           <div className="drawer-section link-grid">
