@@ -39,6 +39,7 @@ import { attachJarvisAudioGraph, resumeJarvisAudioContext } from "../../audio/tt
 import { applyOutputSink, initAudioOutputRouting } from "../../audio/audio-output.js";
 import { playWakeTransitionSfx } from "../../audio/wake-sfx.js";
 import { isAmbientMusicEnabled, setAmbientMusicDucked, startAmbientMusic, stopAmbientMusic } from "../../audio/ambient-music.js";
+import JarvisParticleVortex from "./visuals/JarvisParticleVortex.jsx";
 import "./styles.css";
 
 const DEFAULT_API = "http://127.0.0.1:3721";
@@ -739,9 +740,53 @@ function EngineeringConsole({ status, open, onClose, onRun, onCancel, onPermissi
   );
 }
 
-function AgentPortrait({ state, voiceStatusText, sending, mode }) {
+function AgentPortrait({ state, voiceStatusText, sending, mode, audioLevel = 0 }) {
   const video = VISUALS[state] || VISUALS.idle;
   const [videoFailed, setVideoFailed] = useState(false);
+  const energy = Math.min(1, Math.max(0, Number(audioLevel) || 0));
+  const frameShift = state === "speaking" ? -1.5 - energy * 2.4 : state === "listening" ? -1.2 - energy * 1.1 : state === "thinking" ? -0.4 : 0;
+  const frameScale = state === "speaking"
+    ? 1.015 + energy * 0.045
+    : state === "listening"
+      ? 1.008 + energy * 0.022
+      : state === "thinking"
+        ? 1.018
+        : 1;
+  const videoScaleBase = mode === "standby" ? 1.32 : mode === "active" ? 1.34 : 1.16;
+  const videoStateBoost = state === "speaking"
+    ? 0.1 + energy * 0.05
+    : state === "listening"
+      ? 0.05 + energy * 0.025
+      : state === "thinking"
+        ? 0.07
+        : 0;
+  const frameRotate = state === "speaking" ? energy * 0.45 : 0;
+  const videoOpacity = videoFailed
+    ? 0
+    : mode === "waking"
+      ? 0.86
+      : state === "speaking"
+        ? 0.18 + energy * 0.08
+        : state === "listening"
+          ? 0.16 + energy * 0.06
+          : 0.14;
+  const canvasBaseOpacity = mode === "standby" ? 0.16 : mode === "active" ? 0.13 : 0.1;
+  const videoFilter = state === "speaking"
+    ? `saturate(${1.05 + energy * 0.24}) contrast(${1.16 + energy * 0.08}) brightness(${0.94 + energy * 0.08})`
+    : state === "listening"
+      ? `saturate(${0.98 + energy * 0.14}) contrast(1.16) brightness(${0.95 + energy * 0.03})`
+      : state === "thinking"
+        ? "saturate(0.96) contrast(1.18) brightness(0.95)"
+        : "saturate(0.96) contrast(1.14) brightness(0.94)";
+  const energyStyle = {
+    "--voice-energy": energy.toFixed(3),
+    "--aurora-blur": `${(14 + energy * 12).toFixed(1)}px`,
+    "--aurora-opacity": (0.18 + energy * 0.34).toFixed(3),
+    "--aurora-scale": (0.98 + energy * 0.08).toFixed(3),
+    "--aurora-scale-low": (0.97 + energy * 0.06).toFixed(3),
+    "--aurora-scale-high": (1.03 + energy * 0.1).toFixed(3),
+    "--voice-canvas-opacity": Math.min(0.98, canvasBaseOpacity + energy * 0.16).toFixed(3)
+  };
 
   useEffect(() => {
     setVideoFailed(false);
@@ -753,37 +798,55 @@ function AgentPortrait({ state, voiceStatusText, sending, mode }) {
         className="entity-frame"
         initial={false}
         animate={{
-          y: state === "listening" ? -2 : 0,
-          scale: state === "thinking" ? 1.015 : 1
+          y: frameShift,
+          scale: frameScale,
+          rotateZ: frameRotate
         }}
         transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+        style={energyStyle}
       >
-        <video
-          key={video}
-          className={cls("entity-video", videoFailed && "is-failed")}
-          src={video}
-          autoPlay
-          muted
-          loop
-          playsInline
-          aria-hidden="true"
-          onError={() => setVideoFailed(true)}
-        />
+        <AnimatePresence mode="sync" initial={false}>
+          <motion.video
+            key={video}
+            className={cls("entity-video", videoFailed && "is-failed")}
+            src={video}
+            autoPlay
+            muted
+            loop
+            playsInline
+            aria-hidden="true"
+            onError={() => setVideoFailed(true)}
+            onLoadedData={(event) => {
+              event.currentTarget.play?.().catch?.(() => {});
+            }}
+            initial={{ opacity: 0, scale: 1.04, filter: "blur(5px) saturate(0.9) brightness(0.9)" }}
+            animate={{
+              opacity: videoOpacity,
+              scale: videoScaleBase + videoStateBoost,
+              filter: videoFilter
+            }}
+            exit={{ opacity: 0, scale: 1.1, filter: "blur(9px) saturate(0.85) brightness(0.86)" }}
+            transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+          />
+        </AnimatePresence>
+        <JarvisParticleVortex state={state} audioLevel={energy} />
         <div className="entity-matte" />
+        <div className="entity-aurora" aria-hidden="true" />
         <div id="voice-panel" className="voice-panel">
           <canvas id="voice-canvas" width="360" height="360" />
-          {mode === "standby" || mode === "active" ? <div className="standby-orb-name">JARVIS</div> : null}
           <div className="voice-readout">
             <span id="voice-status">{voiceStatusText}</span>
             <span id="voice-transcript" />
           </div>
         </div>
       </motion.div>
+      {mode === "waking" ? (
       <div className="portrait-copy">
         <span>JARVIS</span>
         <strong>{stateLabel(state)}</strong>
         <p>{sending ? "DeepSeek 正在生成回复。" : voiceStatusText}</p>
       </div>
+      ) : null}
     </section>
   );
 }
@@ -1944,6 +2007,7 @@ function App() {
         if (!options.sequence) markVoiceReadyForNextTurn("tts");
         voiceBlockedUntilRef.current = Date.now() + VOICE_POST_TTS_BLOCK_MS;
         if (!options.sequence && options.resumeMic !== false) {
+          try { window.jarvisVoice?.resumeAfterMedia?.(); } catch {}
           resumeMicAfterTTS();
           schedulePostReplyListen();
         }
@@ -2538,6 +2602,7 @@ function App() {
           voiceStatusText={voiceStatusText}
           sending={sending}
           mode={interfaceMode}
+          audioLevel={audioLevel}
         />
 
         <AcuiWorkbenchLayer cards={acuiCards} connected={acuiConnected} onDismiss={dismissAcuiCard} />

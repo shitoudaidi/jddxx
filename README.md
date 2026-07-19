@@ -2,16 +2,32 @@
 
 Every man's Jarvis: an open-source Windows desktop Agent that can listen, converse, read the latest AI news, and help you get real work done. GDDXX-Jarvis combines a sci-fi control room, DeepSeek conversation, wake-word voice interaction, local Jarvis TTS, AI HOT news, and an optional Grok Build engineering workspace.
 
-## Quick Start (Windows)
+## Download
 
-### Option A: install the release
+| System | Download | Status |
+|---|---|---|
+| Windows 64-bit | `GDDXX-Jarvis-Windows-x64-Setup-*.exe` | Supported |
+| Windows 32-bit | Not available | Not supported yet |
+| macOS Apple Silicon / Intel | Not available | Not supported yet |
+| Linux x64 | Not available | Not supported yet |
 
-1. Download `Jarvis-Setup-*.exe` from this repository's GitHub Releases page when a release is available.
-2. Run the installer and launch `Jarvis` from the desktop or Start menu.
-3. On first launch, open Settings and configure DeepSeek plus ASR credentials.
-4. For wake voice, say `嗨，贾维斯` or `Hello Jarvis` after the microphone status shows ready.
+Current public release target: Windows 10/11 64-bit.
 
-### Option B: run from source
+## Quick Start
+
+### For normal users: install the app
+
+1. Open this repository's GitHub Releases page.
+2. Download the latest `GDDXX-Jarvis-Windows-x64-Setup-*.exe`.
+3. Run the installer.
+4. Launch `Jarvis` from the desktop or Start menu.
+5. On first launch, open Settings and configure DeepSeek plus ASR credentials.
+
+That is the intended install path. No Node.js, npm, Visual Studio Build Tools, Git, or source compilation should be required for normal use.
+
+For wake voice, say `嗨，贾维斯` or `Hello Jarvis` after the microphone status shows ready.
+
+### For developers: run from source
 
 Requirements: Windows 10/11, Node.js 20+, Git, and a working microphone.
 

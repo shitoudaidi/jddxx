@@ -30,6 +30,117 @@ function fibSphere(n, radius) {
 const BASE_PTS  = fibSphere(3200, 1.0);
 const BASE_PTS2 = fibSphere(1200, 0.88);
 
+const IMAGE_PARTICLE_SOURCE = './visuals/particle-vortex-source.png';
+const IMAGE_PARTICLE_TARGET = 6200;
+const IMAGE_SAMPLE_SIZE = 260;
+let imageParticlePts = null;
+let imageParticlePromise = null;
+const IMAGE_PTS_BY_STRIDE = new Map();
+
+function clamp01(v) {
+  return Math.max(0, Math.min(1, v));
+}
+
+function hash01(seed) {
+  const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453123;
+  return x - Math.floor(x);
+}
+
+function loadImageParticles() {
+  if (imageParticlePts || imageParticlePromise || typeof Image === 'undefined' || typeof document === 'undefined') {
+    return imageParticlePromise;
+  }
+
+  imageParticlePromise = new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        imageParticlePts = buildImageParticleSet(img);
+        IMAGE_PTS_BY_STRIDE.clear();
+        resolve(imageParticlePts);
+      } catch (err) {
+        console.warn('[voice-core] image particle source failed', err);
+        imageParticlePts = null;
+        resolve(null);
+      }
+    };
+    img.onerror = () => {
+      console.warn('[voice-core] image particle source missing:', IMAGE_PARTICLE_SOURCE);
+      imageParticlePts = null;
+      resolve(null);
+    };
+    img.src = IMAGE_PARTICLE_SOURCE;
+  });
+
+  return imageParticlePromise;
+}
+
+function buildImageParticleSet(img) {
+  const side = IMAGE_SAMPLE_SIZE;
+  const sourceW = img.naturalWidth || img.width || side;
+  const sourceH = img.naturalHeight || img.height || side;
+  const canvas = document.createElement('canvas');
+  canvas.width = side;
+  canvas.height = side;
+  const ictx = canvas.getContext('2d', { willReadFrequently: true });
+  ictx.clearRect(0, 0, side, side);
+
+  const fit = Math.min(side / sourceW, side / sourceH);
+  const dw = Math.max(1, Math.round(sourceW * fit));
+  const dh = Math.max(1, Math.round(sourceH * fit));
+  const dx = Math.round((side - dw) / 2);
+  const dy = Math.round((side - dh) / 2);
+  ictx.drawImage(img, dx, dy, dw, dh);
+
+  const { data } = ictx.getImageData(0, 0, side, side);
+  const candidates = [];
+  for (let y = 0; y < side; y++) {
+    for (let x = 0; x < side; x++) {
+      const offset = (y * side + x) * 4;
+      const a = data[offset + 3] / 255;
+      if (a < 0.05) continue;
+
+      const r = data[offset];
+      const g = data[offset + 1];
+      const b = data[offset + 2];
+      const lum = ((r * 0.299 + g * 0.587 + b * 0.114) / 255) * a;
+      if (lum < 0.045) continue;
+
+      const seed = y * side + x;
+      const weight = Math.pow(clamp01((lum - 0.045) / 0.955), 0.5);
+      const rank = hash01(seed) / (0.16 + weight * 0.84);
+      candidates.push({ x, y, r, g, b, lum, seed, rank });
+    }
+  }
+
+  candidates.sort((a, b) => a.rank - b.rank);
+  const chosen = candidates.slice(0, IMAGE_PARTICLE_TARGET);
+  return chosen.map((p, i) => {
+    const nx = ((p.x + 0.5) / side - 0.5) * 2.02;
+    const ny = (0.5 - (p.y + 0.5) / side) * 2.02;
+    const br = clamp01((p.lum - 0.035) / 0.72);
+    const radial = Math.sqrt(nx * nx + ny * ny);
+    const depthSeed = hash01(p.seed + 37);
+    const depth = (depthSeed - 0.5) * 0.62 + (0.5 - Math.min(0.5, radial * 0.36)) + br * 0.18;
+    const phase = hash01(p.seed + 73) * Math.PI * 2;
+    return {
+      source: 'image',
+      x: nx,
+      y: ny,
+      z: depth,
+      r: p.r,
+      g: p.g,
+      b: p.b,
+      br,
+      phase,
+      drift: 0.45 + hash01(p.seed + 131) * 1.35,
+      spin: 0.38 + hash01(p.seed + 181) * 1.7,
+      size: 0.34 + br * 0.76 + hash01(p.seed + 211) * 0.28,
+      index: i,
+    };
+  });
+}
+
 // 小尺寸抽稀：球被媒体模式缩成小坞（世界杯 40px / 热点·视频 56px）时，4400 个点
 // 的投影、排序、逐点绘制大部分是浪费——按 canvas 的 CSS 尺寸隔 N 取 1。
 // Fibonacci 采样本身均匀，等距抽稀后依旧均匀，小尺寸下视觉无差别，成本随点数线性降。
@@ -44,6 +155,22 @@ function ptsForStride(stride) {
           inner: BASE_PTS2.filter((_, i) => i % stride === 0),
         };
     PTS_BY_STRIDE.set(stride, pts);
+  }
+  return pts;
+}
+
+function renderPtsForStride(stride) {
+  if (!imageParticlePts || !imageParticlePts.length) {
+    return { ...ptsForStride(stride), source: 'sphere' };
+  }
+
+  let pts = IMAGE_PTS_BY_STRIDE.get(stride);
+  if (!pts) {
+    const outer = stride === 1
+      ? imageParticlePts
+      : imageParticlePts.filter((_, i) => i % stride === 0);
+    pts = { outer, inner: [], source: 'image' };
+    IMAGE_PTS_BY_STRIDE.set(stride, pts);
   }
   return pts;
 }
@@ -149,6 +276,12 @@ registerProcessor('pcm-capture', PcmCaptureProcessor);
 
 export function createVoiceCore({ canvas, transcript, getChatInput, getSendMessage, getLang }) {
   const ctx = canvas.getContext('2d');
+  loadImageParticles();
+  const prefersReducedMotion =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const motionFactor = prefersReducedMotion ? 0.5 : 1;
   let W = 0, H = 0, cx = 0, cy = 0, scale = 0;
   // canvas 的 CSS 短边，绘制帧的 resize 顺手写入（节流档位/抽稀档位都按它判）。
   // 初值取大,首帧按全量画,第一次 resize 后立刻校正。
@@ -334,43 +467,113 @@ export function createVoiceCore({ canvas, transcript, getChatInput, getSendMessa
       if (eventFlashCount <= 0) setStatus(micActive ? 'listening' : 'idle');
     }
 
-    s.t    += 0.016 * s.spd;
-    s.rotY += 0.008;
-    s.rotX  = 0.22 + Math.sin(s.t * 0.15) * 0.06;
+    s.t    += 0.016 * s.spd * motionFactor;
+    s.rotY += 0.008 * motionFactor;
+    s.rotX  = 0.22 + Math.sin(s.t * 0.15) * 0.06 * motionFactor;
 
     ctx.clearRect(0, 0, W, H);
 
     const cY = Math.cos(s.rotY), sY = Math.sin(s.rotY);
     const cX = Math.cos(s.rotX), sX = Math.sin(s.rotX);
+    const renderPts = renderPtsForStride(strideForSize());
+    const isImageCloud = renderPts.source === 'image';
 
-    const project = (orig) => {
+    const projectSphere = (orig, inner) => {
       const d = 1.0 + sn(orig.x, orig.y, orig.z, s.t) * s.amp;
       const px = orig.x * d, py = orig.y * d, pz = orig.z * d;
-      const rx  =  px * cY + pz * sY;
+      const rx = px * cY + pz * sY;
       const ry0 = py;
-      const rz  = -px * sY + pz * cY;
-      const ry  = ry0 * cX - rz * sX;
+      const rz = -px * sY + pz * cY;
+      const ry = ry0 * cX - rz * sX;
       const rz2 = ry0 * sX + rz * cX;
-      return { sx: cx + rx * scale, sy: cy - ry * scale, z: rz2 };
+      return {
+        sx: cx + rx * scale,
+        sy: cy - ry * scale,
+        z: rz2,
+        inner,
+        source: 'sphere',
+        br: 0.35,
+        rBase: inner ? 0.46 : 0.72
+      };
     };
 
-    const { outer, inner } = ptsForStride(strideForSize());
-    const allPts = [
-      ...outer.map(p => ({ ...project(p), inner: false })),
-      ...inner.map(p => ({ ...project(p), inner: true  })),
-    ];
+    const projectImage = (orig) => {
+      const wave = sn(orig.x * 1.2, orig.y * 1.2, orig.z, s.t + orig.phase * 0.2);
+      const radial = Math.sqrt(orig.x * orig.x + orig.y * orig.y);
+      const pull =
+        sk === 'recognizing' ? 0.094 :
+        sk === 'processing' ? 0.068 :
+        sk === 'speaking' ? 0.072 + visualVol * 0.16 :
+        sk === 'event' ? 0.15 :
+        sk === 'done' ? 0.028 :
+        sk === 'listening' ? 0.038 :
+        0.02;
+      const pulse = 1
+        + Math.sin(s.t * (0.72 + orig.spin * 0.12) + orig.phase) * (0.008 + orig.br * 0.014)
+        + s.amp * (0.18 + orig.br * 0.1)
+        + visualVol * (0.14 + orig.br * 0.18);
+      const drift = pull * (0.75 + radial * 0.55) * (0.7 + orig.drift * 0.35) * motionFactor;
+      const dx = Math.cos(orig.phase + s.t * orig.spin * 0.34) * drift + wave * (0.042 + orig.br * 0.03);
+      const dy = Math.sin(orig.phase * 1.31 + s.t * orig.spin * 0.28) * drift + Math.cos(wave * 2.1 + s.t) * (0.016 + orig.br * 0.012);
+      const pz = orig.z + Math.sin(s.t * 0.85 + orig.phase) * (0.06 + orig.br * 0.02) + wave * (0.14 + orig.br * 0.05) + visualVol * 0.24;
+      const px = orig.x * pulse + dx;
+      const py = orig.y * pulse + dy;
+      const cY2 = Math.cos(s.rotY * 0.42), sY2 = Math.sin(s.rotY * 0.42);
+      const cX2 = Math.cos(s.rotX * 0.34), sX2 = Math.sin(s.rotX * 0.34);
+      const rx = px * cY2 + pz * sY2;
+      const ry0 = py;
+      const rz = -px * sY2 + pz * cY2;
+      const ry = ry0 * cX2 - rz * sX2;
+      const rz2 = ry0 * sX2 + rz * cX2;
+      return {
+        sx: cx + rx * scale * 1.02,
+        sy: cy - ry * scale * 1.02,
+        z: rz2,
+        inner: false,
+        source: 'image',
+        br: orig.br,
+        rBase: 0.54 + orig.br * 0.58,
+        cr: orig.r,
+        cg: orig.g,
+        cb: orig.b
+      };
+    };
+
+    const allPts = isImageCloud
+      ? renderPts.outer.map(p => projectImage(p))
+      : [
+          ...renderPts.outer.map(p => projectSphere(p, false)),
+          ...renderPts.inner.map(p => projectSphere(p, true)),
+        ];
     allPts.sort((a, b) => a.z - b.z);
 
     for (const pt of allPts) {
-      const depth = (pt.z + 1.5) / 3.0;
-      const r = Math.round(lerp(s.col[0][0], s.col[0][2], depth));
-      const g = Math.round(lerp(s.col[1][0], s.col[1][2], depth));
-      const b = Math.round(lerp(s.col[2][0], s.col[2][2], depth));
-      const alpha = 0.25 + depth * 0.75;
-      const dotR = pt.inner ? (0.4 + depth * 0.5) : (0.6 + depth * 0.8 + s.amp * 2);
+      const depth = clamp01((pt.z + 1.4) / 2.8);
+      let r;
+      let g;
+      let b;
+      let alpha;
+      let dotR;
+
+      if (pt.source === 'image') {
+        const mix = 0.26 + depth * 0.42 + visualVol * 0.18;
+        const warm = 0.62 + pt.br * 0.18;
+        r = Math.round(lerp(pt.cr, s.col[0][2], mix * 0.48));
+        g = Math.round(lerp(pt.cg, s.col[1][2], mix * 0.44));
+        b = Math.round(lerp(pt.cb, s.col[2][2], mix * 0.38));
+        alpha = (0.18 + pt.br * 0.68) * (0.78 + depth * 0.42);
+        dotR = (0.34 + pt.br * 0.92 + depth * 0.22 + visualVol * 0.35) * warm;
+      } else {
+        r = Math.round(lerp(s.col[0][0], s.col[0][2], depth));
+        g = Math.round(lerp(s.col[1][0], s.col[1][2], depth));
+        b = Math.round(lerp(s.col[2][0], s.col[2][2], depth));
+        alpha = 0.25 + depth * 0.75;
+        dotR = pt.inner ? (0.4 + depth * 0.5) : (0.6 + depth * 0.8 + s.amp * 2);
+      }
+
       ctx.beginPath();
       ctx.arc(pt.sx, pt.sy, dotR, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(${r},${g},${b},${alpha.toFixed(2)})`;
+      ctx.fillStyle = `rgba(${r},${g},${b},${Math.min(0.98, alpha).toFixed(2)})`;
       ctx.fill();
     }
 
