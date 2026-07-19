@@ -21,10 +21,21 @@ cd jddxx
 Copy-Item config.example.json config.json
 notepad config.json
 npm.cmd install
+npm.cmd run doctor:install
 npm.cmd run start:desktop
 ```
 
 Never commit `config.json`. It is intentionally ignored by Git.
+
+If source installation fails on Windows, run:
+
+```powershell
+npm.cmd run doctor:install
+npm.cmd run repair:electron
+npm.cmd run rebuild:native
+```
+
+`doctor:install` checks the real Electron binary version and verifies `better-sqlite3` inside Electron's own runtime. `repair:electron` re-downloads Electron and refuses binaries that fail validation. If `better-sqlite3` still fails to build, install Visual Studio Build Tools 2022 with the C++ desktop workload, then run `npm.cmd run rebuild:native` again.
 
 ## Configuration
 
@@ -72,7 +83,7 @@ npm.cmd run pack        # unpacked Windows app for local testing
 npm.cmd run dist        # installer under dist/
 ```
 
-On the maintainer's computer, Jarvis continues to use `H:\Jarvis` when that directory exists. On other computers it automatically uses `%LOCALAPPDATA%\JarvisLocalAgent`. Set `JARVIS_HOME` or `JARVIS_USER_DIR` to choose a different location explicitly.
+Source runs keep runtime data under the current project directory. Installed releases use `%LOCALAPPDATA%\JarvisLocalAgent`. Set `JARVIS_HOME` or `JARVIS_USER_DIR` to choose a different location explicitly.
 
 ## Project Layout
 
@@ -118,6 +129,7 @@ Web search prefers configured providers (`Serper`, `Brave`, `Tavily`, `SearXNG`,
 
 ```powershell
 npm.cmd install
+npm.cmd run doctor:install
 npm.cmd run start:desktop
 ```
 
@@ -168,7 +180,7 @@ npm.cmd run pack
 npm.cmd run dist
 ```
 
-Runtime data uses `H:\Jarvis\runtime\jarvis` on the maintainer's computer and `%LOCALAPPDATA%\JarvisLocalAgent\runtime\jarvis` elsewhere. Environment variables `JARVIS_HOME` and `JARVIS_USER_DIR` override these defaults.
+Source runs use `<project>\runtime\jarvis`; installed releases use `%LOCALAPPDATA%\JarvisLocalAgent\runtime\jarvis`. Environment variables `JARVIS_HOME` and `JARVIS_USER_DIR` override these defaults.
 
 ## Notes
 

@@ -143,13 +143,13 @@ export const DOC_TOPICS = {
         content: `MiniMax 高质量中文 TTS，音色自然，表现力强。
 
 配置方式：
-■ MiniMax TTS 使用与 LLM 相同的 API Key
-■ 如果当前 LLM 服务商已设置为 MiniMax，TTS 自动使用该密钥，无需额外配置
+■ MiniMax TTS 使用独立的 minimaxKey
 ■ 也可设置环境变量 MINIMAX_API_KEY
+■ 它只是可选语音合成扩展，不是默认聊天模型
 
 在语音设置中：
 1. 将「TTS 服务商」选择为「MiniMax」
-2. 确保 LLM 已配置 MiniMax 密钥，或设置 MINIMAX_API_KEY 环境变量
+2. 填写 minimaxKey，或设置 MINIMAX_API_KEY 环境变量
 
 常用音色：
 → male-qn-qingse（青涩男声）
@@ -230,7 +230,7 @@ export const DOC_TOPICS = {
     ],
     providers: [
       { name: '豆包语音合成 2.0（首选）', url: 'https://console.volcengine.com/speech/new/', free: false, note: '首选推荐，流式低延迟，字段：doubaoKey（需先认证+开通+音色授权）' },
-      { name: 'MiniMax', url: 'https://platform.minimaxi.com/', free: false, note: '复用 LLM 密钥，无需额外配置' },
+      { name: 'MiniMax', url: 'https://platform.minimaxi.com/', free: false, note: '可选 TTS 扩展，字段：minimaxKey' },
       { name: 'OpenAI TTS', url: 'https://platform.openai.com/', free: false, note: '英文顶级，字段：openaiTtsKey' },
       { name: 'ElevenLabs', url: 'https://elevenlabs.io/', free: true, note: '超自然音色，字段：elevenLabsKey' },
       { name: '火山引擎 TTS', url: 'https://console.volcengine.com/speech/service/8', free: false, note: '传统版，字段：volcanoAppId + volcanoToken' },
@@ -262,8 +262,7 @@ export const DOC_TOPICS = {
   · 语音识别：阿里云百炼 Paraformer（https://bailian.console.aliyun.com/，字段 aliyunApiKey）
   · 语音合成：本地 Jarvis Piper 声线（ttsProvider=jarvis，ttsVoiceId=jarvis-high）
 
-■ 云端可选：豆包语音合成 2.0、OpenAI TTS 或 ElevenLabs
-■ 已用 MiniMax 作为 LLM：阿里云百炼 ASR + MiniMax TTS（自动复用密钥）
+■ 云端可选：豆包语音合成 2.0、OpenAI TTS、ElevenLabs 或 MiniMax TTS
 
 提醒：本地 Jarvis TTS 不需要 API Key；云端 ASR/TTS 需要先到对应官网申请 API Key，并完成实名认证和服务开通后才能使用。`,
       },

@@ -1300,7 +1300,7 @@ export function getTTSCredentials() {
     doubaoResourceId: stored.doubaoResourceId || process.env.DOUBAO_TTS_RESOURCE_ID || '',
     doubaoStyle:    stored.doubaoStyle || process.env.DOUBAO_TTS_STYLE || '',
     doubaoSpeechRate: Number(stored.doubaoSpeechRate ?? process.env.DOUBAO_TTS_SPEECH_RATE ?? 0) || 0,
-    minimaxKey:     process.env.MINIMAX_API_KEY || stored.minimaxKey || getMinimaxKey() || (config.provider === 'minimax' ? config.apiKey : '') || '',
+    minimaxKey:     process.env.MINIMAX_API_KEY || stored.minimaxKey || getMinimaxKey() || '',
     openaiKey:      stored.openaiTtsKey  || '',
     openaiBaseURL:  stored.openaiTtsBaseURL || '',
     elevenLabsKey:  stored.elevenLabsKey || '',

@@ -7,8 +7,8 @@ import { config } from './config.js'
 import { emitEvent } from './events.js'
 import { paths } from './paths.js'
 
-const H_DRIVE_ROOT = path.parse('H:\\').root
-const DEFAULT_PROJECT_ROOT = 'H:\\Jarvis'
+const DEFAULT_PROJECT_ROOT = path.resolve(process.env.JARVIS_HOME || paths.resourcesDir)
+const WORKSPACE_DRIVE_ROOT = path.parse(DEFAULT_PROJECT_ROOT).root
 const DEFAULT_GROK_HOME = path.join(DEFAULT_PROJECT_ROOT, 'runtime', 'grok-home')
 const DEFAULT_GROK_BIN = path.join(
   DEFAULT_PROJECT_ROOT,
@@ -41,15 +41,15 @@ function grokHome() {
   return path.resolve(process.env.GROK_HOME || DEFAULT_GROK_HOME)
 }
 
-function isOnHDrive(value) {
+function isOnWorkspaceDrive(value) {
   const resolved = path.resolve(String(value || ''))
-  return path.parse(resolved).root.toLowerCase() === H_DRIVE_ROOT.toLowerCase()
+  return path.parse(resolved).root.toLowerCase() === WORKSPACE_DRIVE_ROOT.toLowerCase()
 }
 
 function resolveTaskCwd(value) {
   const requested = String(value || '').trim()
   const resolved = path.resolve(requested || paths.sandboxDir)
-  if (!isOnHDrive(resolved)) throw new Error('工程任务只能在 H 盘运行')
+  if (!isOnWorkspaceDrive(resolved)) throw new Error(`工程任务只能在 ${WORKSPACE_DRIVE_ROOT} 盘运行`)
   if (!fs.existsSync(resolved) || !fs.statSync(resolved).isDirectory()) {
     throw new Error(`工作目录不存在: ${resolved}`)
   }
@@ -320,7 +320,7 @@ export function getGrokBuildStatus() {
     binary,
     home: grokHome(),
     defaultCwd: paths.sandboxDir,
-    storagePolicy: 'H_DRIVE_ONLY',
+    storagePolicy: 'WORKSPACE_DRIVE_ONLY',
     task: publicTask(),
   }
 }

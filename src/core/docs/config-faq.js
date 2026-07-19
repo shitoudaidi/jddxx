@@ -12,7 +12,7 @@ export const CONFIG_TOPICS = {
     title: '模型配置指南',
     subtitle: 'LLM Provider Configuration',
     icon: '🤖',
-    summary: '配置 AI 大模型服务商及 API Key。首选推荐 DeepSeek（官网 deepseek.com）。同时支持 MiniMax、通义千问、Moonshot、智谱、OpenAI、小米 MiMo 及自定义端点。',
+    summary: '配置 AI 大模型服务商及 API Key。首选推荐 DeepSeek（官网 deepseek.com）。同时支持通义千问、Moonshot、智谱、OpenAI、小米 MiMo 及自定义端点。',
     sections: [
       {
         title: '支持的服务商总览',
@@ -20,7 +20,7 @@ export const CONFIG_TOPICS = {
 
 ${MODEL_CATALOG_TEXT}
 
-MiniMax 一个 Key 同时供 LLM 与 TTS 两用。`,
+MiniMax 只作为可选 TTS 扩展保留，不再作为默认聊天模型入口。`,
       },
       {
         title: 'DeepSeek 配置（首选推荐）',
@@ -37,20 +37,6 @@ MiniMax 一个 Key 同时供 LLM 与 TTS 两用。`,
 4. 注意：需先完成实名认证并开通 API 服务，按平台使用规则充值/领取额度
 
 文档：https://platform.deepseek.com/api-docs`,
-      },
-      {
-        title: 'MiniMax 配置',
-        content: `MiniMax 同时提供 LLM 和 TTS 语音合成，一个 Key 两用。
-
-■ 字段：apiKey（格式：eyJhbGc...）
-■ 默认模型：MiniMax-M2.7
-
-申请步骤：
-1. 打开 https://platform.minimaxi.com/ 注册/登录
-2. 进入「接口密钥」→ 创建新 Key
-3. 复制 Key，在模型设置中填写（TTS 会自动复用）
-
-文档：https://platform.minimaxi.com/document/guides/introduction`,
       },
       {
         title: '通义千问（Qwen）配置',
@@ -116,7 +102,6 @@ MiniMax 一个 Key 同时供 LLM 与 TTS 两用。`,
     ],
     providers: [
       { name: 'DeepSeek（首选）', url: 'https://deepseek.com', free: false, note: '官网 deepseek.com，API 平台 platform.deepseek.com，deepseek-v4-flash/pro' },
-      { name: 'MiniMax', url: 'https://platform.minimaxi.com/', free: false, note: 'MiniMax-M2.7，兼顾 TTS' },
       { name: '通义千问', url: 'https://bailian.console.aliyun.com/', free: false, note: 'qwen-turbo/plus' },
       { name: 'Moonshot', url: 'https://platform.moonshot.cn/', free: false, note: 'moonshot-v1-8k/32k' },
       { name: '智谱 AI', url: 'https://open.bigmodel.cn/', free: false, note: 'glm-5.1（默认）、glm-5-turbo、glm-5' },

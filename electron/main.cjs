@@ -8,9 +8,8 @@ const { pathToFileURL } = require("url");
 
 const ROOT = path.resolve(__dirname, "..");
 const LOCAL_APP_HOME = path.join(process.env.LOCALAPPDATA || process.env.USERPROFILE || ROOT, "JarvisLocalAgent");
-const DEVELOPMENT_HOME = "H:\\Jarvis";
 const JARVIS_HOME = path.resolve(
-  process.env.JARVIS_HOME || (fs.existsSync(DEVELOPMENT_HOME) ? DEVELOPMENT_HOME : LOCAL_APP_HOME)
+  process.env.JARVIS_HOME || (app.isPackaged ? LOCAL_APP_HOME : ROOT)
 );
 const CORE_ENTRY = path.join(ROOT, "src", "core", "index.js");
 const IS_DESKTOP_PROBE = /^(1|true|yes|on)$/i.test(String(process.env.JARVIS_DESKTOP_PROBE || ""));
@@ -157,7 +156,7 @@ function getConfigCandidateRoots() {
   ]).filter((root) => path.resolve(root).toLowerCase() !== path.resolve(runtimeRoot).toLowerCase());
 }
 
-const LLM_PROVIDER_IDS = ["deepseek", "minimax", "openai", "qwen", "moonshot", "zhipu", "mimo", "custom"];
+const LLM_PROVIDER_IDS = ["deepseek", "openai", "qwen", "moonshot", "zhipu", "mimo", "custom"];
 
 function providerFromConfig(cfg) {
   const candidates = [

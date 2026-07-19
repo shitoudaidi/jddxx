@@ -1126,9 +1126,16 @@ textarea:focus-visible {
   width: 106px;
   aspect-ratio: 1;
   overflow: hidden;
-  border: 1px solid rgba(222, 244, 255, 0.72);
+  border: 1px solid rgba(239, 244, 232, 0.28);
   border-radius: 50%;
-  background: rgba(5, 8, 11, 0.9);
+  background:
+    radial-gradient(circle at 42% 34%, rgba(255, 255, 255, 0.12), transparent 18%),
+    radial-gradient(circle at 54% 62%, rgba(218, 180, 94, 0.08), transparent 38%),
+    #040504;
+  box-shadow:
+    0 0 42px rgba(165, 222, 214, 0.08),
+    inset 0 0 58px rgba(255, 255, 255, 0.035);
+  isolation: isolate;
   transition:
     width 680ms var(--ease),
     border-color 420ms var(--ease),
@@ -1136,21 +1143,23 @@ textarea:focus-visible {
 }
 
 .monitor-stage.mode-standby .entity-frame {
-  width: clamp(190px, 25vw, 280px);
-  border-color: rgba(126, 232, 255, 0.24);
+  width: clamp(250px, 32vw, 430px);
+  border-color: rgba(239, 244, 232, 0.18);
   animation: standby-drift 9s ease-in-out infinite;
   box-shadow:
-    0 0 96px rgba(86, 215, 255, 0.2),
-    inset 0 0 64px rgba(126, 232, 255, 0.1);
+    0 0 112px rgba(111, 220, 207, 0.13),
+    0 0 34px rgba(214, 172, 88, 0.08),
+    inset 0 0 76px rgba(255, 255, 255, 0.045);
 }
 
 .monitor-stage.mode-active .entity-frame {
-  width: clamp(205px, 19vw, 250px);
-  border-color: rgba(126, 232, 255, 0.24);
+  width: clamp(230px, 22vw, 330px);
+  border-color: rgba(239, 244, 232, 0.2);
   animation: standby-drift 9s ease-in-out infinite;
   box-shadow:
-    0 0 76px rgba(86, 215, 255, 0.18),
-    inset 0 0 56px rgba(126, 232, 255, 0.1);
+    0 0 82px rgba(111, 220, 207, 0.12),
+    0 0 22px rgba(214, 172, 88, 0.07),
+    inset 0 0 64px rgba(255, 255, 255, 0.04);
 }
 
 .entity-frame::before,
@@ -1159,20 +1168,22 @@ textarea:focus-visible {
   position: absolute;
   inset: 8px;
   z-index: 4;
-  border: 2px solid transparent;
-  border-left-color: rgba(222, 244, 255, 0.72);
-  border-bottom-color: rgba(222, 244, 255, 0.48);
+  border: 1px solid transparent;
+  border-left-color: rgba(239, 244, 232, 0.46);
+  border-bottom-color: rgba(239, 244, 232, 0.22);
   border-radius: 50%;
   animation: orbit-arc 3.8s linear infinite;
+  opacity: 0.82;
 }
 
 .entity-frame::after {
   inset: 15px;
   border-left-color: transparent;
-  border-right-color: rgba(126, 232, 255, 0.72);
+  border-right-color: rgba(111, 220, 207, 0.48);
   border-bottom-color: transparent;
   animation-duration: 5.2s;
   animation-direction: reverse;
+  opacity: 0.64;
 }
 
 .entity-video,
@@ -1186,9 +1197,9 @@ textarea:focus-visible {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0.7;
-  filter: saturate(1.1) contrast(1.16);
-  transform: scale(1.2);
+  opacity: 0.98;
+  filter: saturate(0.98) contrast(1.18) brightness(0.96);
+  transform: scale(1.02);
 }
 
 .entity-video.is-failed {
@@ -1198,8 +1209,8 @@ textarea:focus-visible {
 .entity-matte {
   z-index: 1;
   background:
-    linear-gradient(180deg, rgba(5, 8, 11, 0.12), rgba(5, 8, 11, 0.66)),
-    radial-gradient(circle at 50% 50%, transparent 0 42%, rgba(5, 8, 11, 0.82) 100%);
+    linear-gradient(180deg, rgba(5, 5, 4, 0.04), rgba(5, 5, 4, 0.42)),
+    radial-gradient(circle at 50% 48%, transparent 0 58%, rgba(5, 5, 4, 0.32) 74%, rgba(5, 5, 4, 0.76) 100%);
   pointer-events: none;
 }
 
@@ -1214,8 +1225,25 @@ textarea:focus-visible {
 #voice-canvas {
   width: 100%;
   height: 100%;
-  opacity: 0.48;
-  filter: saturate(1.3);
+  opacity: 0.08;
+  filter: saturate(0.82) contrast(1.08) brightness(1.04);
+  mix-blend-mode: screen;
+}
+
+.monitor-stage.mode-standby #voice-canvas {
+  opacity: 0.035;
+}
+
+.agent-portrait.state-listening #voice-canvas {
+  opacity: 0.14;
+}
+
+.agent-portrait.state-speaking #voice-canvas {
+  opacity: 0.12;
+}
+
+.agent-portrait.state-alert #voice-canvas {
+  opacity: 0.11;
 }
 
 .voice-readout {
@@ -1247,12 +1275,15 @@ textarea:focus-visible {
   z-index: 5;
   display: grid;
   place-items: center;
-  color: rgba(247, 252, 255, 0.9);
+  color: rgba(247, 252, 245, 0.9);
   font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 680;
-  letter-spacing: 0.14em;
-  text-shadow: 0 0 24px rgba(126, 232, 255, 0.6);
+  font-size: 12px;
+  font-weight: 620;
+  letter-spacing: 0.18em;
+  text-shadow:
+    0 0 20px rgba(111, 220, 207, 0.42),
+    0 0 10px rgba(214, 172, 88, 0.28);
+  mix-blend-mode: screen;
 }
 
 .monitor-stage.mode-standby .voice-readout {
@@ -2526,31 +2557,40 @@ aside.acui-result-layer[data-connected="true"] ~ .news-ticker {
 }
 
 .app-shell.mode-active .entity-frame {
-  width: clamp(300px, 28vw, 440px);
-  border-color: rgba(80, 198, 226, 0.38);
+  width: clamp(300px, 28vw, 430px);
+  border-color: rgba(239, 244, 232, 0.2);
   box-shadow:
-    0 0 72px rgba(35, 160, 190, 0.12),
-    inset 0 0 62px rgba(65, 191, 219, 0.08);
+    0 0 84px rgba(111, 220, 207, 0.11),
+    0 0 24px rgba(214, 172, 88, 0.07),
+    inset 0 0 70px rgba(255, 255, 255, 0.04);
 }
 
 .app-shell.mode-active .entity-frame::before {
   inset: 11px;
-  border-left-color: rgba(86, 201, 230, 0.78);
-  border-bottom-color: rgba(86, 201, 230, 0.38);
+  border-left-color: rgba(239, 244, 232, 0.44);
+  border-bottom-color: rgba(239, 244, 232, 0.2);
 }
 
 .app-shell.mode-active .entity-frame::after {
   inset: 23px;
-  border-right-color: rgba(84, 217, 165, 0.48);
+  border-right-color: rgba(111, 220, 207, 0.4);
 }
 
 .app-shell.mode-active .entity-video {
-  opacity: 0.86;
-  filter: saturate(1.12) contrast(1.2) brightness(0.88);
+  opacity: 0.98;
+  filter: saturate(0.98) contrast(1.2) brightness(0.95);
 }
 
 .app-shell.mode-active #voice-canvas {
-  opacity: 0.66;
+  opacity: 0.1;
+}
+
+.app-shell.mode-active .agent-portrait.state-listening #voice-canvas {
+  opacity: 0.16;
+}
+
+.app-shell.mode-active .agent-portrait.state-speaking #voice-canvas {
+  opacity: 0.14;
 }
 
 .app-shell.mode-active .workbench-diagnostics {

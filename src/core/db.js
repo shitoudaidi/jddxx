@@ -8,13 +8,12 @@ const CANONICAL_AGENT_ENTITY = 'agent:jarvis'
 const CANONICAL_USER_ROOT_MEM_ID = 'person_000001'
 const CANONICAL_AGENT_ROOT_MEM_ID = 'agent_jarvis_identity'
 
-const USER_ID_ALIASES = new Set(['000001', 'id:000001', 'yuanda', '1187048501994078249'])
+const USER_ID_ALIASES = new Set(['000001', 'id:000001'])
 const AGENT_ENTITY_ALIASES = new Set(['jarvis', 'agent_jarvis', 'agent:jarvis'])
 const USER_ROOT_ALIASES = new Set([
   'contact_000001',
   'person_000001',
   'person_id000001_interaction',
-  'person_yuanda_identity',
   'user_000001',
   'user_000001_identity',
   'user_000001_profile',
@@ -694,7 +693,7 @@ function inferIdentityEntities(memory) {
   const title = String(memory.title || '')
 
   if (
-    /(?:^|[^a-z0-9])(000001|yuanda)(?:[^a-z0-9]|$)|ID:\s*000001/i.test(text) ||
+    /(?:^|[^a-z0-9])000001(?:[^a-z0-9]|$)|ID:\s*000001/i.test(text) ||
     /^user_|^person_/.test(memId) ||
     /用户/.test(title)
   ) {

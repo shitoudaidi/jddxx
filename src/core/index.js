@@ -286,9 +286,8 @@ if (persistedTask) {
 // Register provider (MiniMax handles multimedia capabilities, independent of the LLM choice).
 function registerMinimaxIfAvailable() {
   const envKey = process.env.MINIMAX_API_KEY
-  const configKey = config.provider === 'minimax' ? config.apiKey : null
   const storedKey = _getMinimaxKey()
-  const key = envKey || configKey || storedKey
+  const key = envKey || storedKey
   if (key) registerProvider(new MinimaxProvider({ apiKey: key }))
 }
 registerMinimaxIfAvailable()

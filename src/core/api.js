@@ -1970,7 +1970,7 @@ export function startAPI(port = 3721, { getStateSnapshot = null, onActivated = n
       return
     }
 
-    // GET /settings — return current LLM + MiniMax configuration status
+    // GET /settings — return current LLM plus optional TTS extension status
     if (req.method === 'GET' && url.pathname === '/settings') {
       const status = getActivationStatus()
       const minimaxKey = getMinimaxKey()

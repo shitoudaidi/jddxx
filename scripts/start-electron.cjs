@@ -1,6 +1,7 @@
 const childProcess = require("child_process");
 const fs = require("fs");
 const path = require("path");
+const { checkInstall } = require("./check-install.cjs");
 
 const root = path.resolve(__dirname, "..");
 const electronPath = path.join(root, "node_modules", "electron", "dist", "electron.exe");
@@ -12,6 +13,17 @@ if (!fs.existsSync(electronPath)) {
   process.exit(1);
 }
 
+const installCheck = checkInstall({ root });
+if (!installCheck.ok) {
+  console.error("[Jarvis] Cannot start because the local installation is incomplete:");
+  for (const issue of installCheck.issues) console.error(`- ${issue}`);
+  console.error("Run npm.cmd run repair:electron, then npm.cmd run rebuild:native.");
+  process.exit(1);
+}
+
+const childEnv = { ...process.env };
+delete childEnv.ELECTRON_RUN_AS_NODE;
+
 const child = childProcess.spawn(electronPath, [
   "--disable-gpu",
   "--disable-gpu-compositing",
@@ -19,7 +31,7 @@ const child = childProcess.spawn(electronPath, [
   ".",
 ], {
   cwd: root,
-  env: process.env,
+  env: childEnv,
   stdio: "inherit",
   windowsHide: false
 });
