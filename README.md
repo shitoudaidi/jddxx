@@ -21,7 +21,7 @@ Current public release target: Windows 10/11 64-bit.
 2. Download the latest `GDDXX-Jarvis-Windows-x64-Setup-*.exe`.
 3. Run the installer.
 4. Launch `GDDXX-Jarvis` from the desktop or Start menu.
-5. On first launch, use the arrow on the standby screen to enter, then open Settings and configure DeepSeek. Configure cloud ASR only when voice input is needed.
+5. On first launch, use the arrow on the standby screen, then complete the required API, model, and voice setup before entering the workbench.
 
 That is the intended install path. No Node.js, npm, Python, Visual Studio Build Tools, Git, or source compilation is required for normal use.
 
@@ -33,17 +33,17 @@ Supported target: a clean Windows 10 or Windows 11 64-bit installation.
 2. Run it, choose an install directory, and finish installation.
 3. Start `GDDXX-Jarvis`; no restart is required.
 
-The installer contains the desktop runtime and local application core. A microphone is optional: the standby arrow always opens the text workbench. DeepSeek conversation and cloud speech recognition require the user's own provider credentials because public builds never contain private API keys. Windows SmartScreen may warn about unsigned community builds; verify that the installer came from this repository's Releases page before continuing.
+The installer contains the desktop runtime, local application core, local Whisper speech recognition, and local Jarvis voice. A microphone is optional: the standby arrow always opens the setup or text workbench. Conversation requires the user's own supported model-provider credential because public builds never contain private API keys. Cloud speech recognition is optional. Windows SmartScreen may warn about unsigned community builds; verify that the installer came from this repository's Releases page before continuing.
 
-For wake voice, say `嗨，贾维斯` or `Hello Jarvis` after the microphone status shows ready.
+For wake voice, say `嗨，贾维斯`, `你好，贾维斯`, or `Hello Jarvis` after the microphone status shows ready.
 
 ### For developers: run from source
 
 Requirements: Windows 10/11, Node.js 20 or 22 LTS, Git, and a working microphone. Node.js 24 may require a local native build toolchain for `better-sqlite3`.
 
 ```powershell
-git clone https://github.com/shitoudaidi/jddxx.git
-cd jddxx
+git clone https://github.com/shitoudaidi/GDDXX-Jarvis.git
+cd GDDXX-Jarvis
 Copy-Item config.example.json config.json
 notepad config.json
 npm.cmd install
