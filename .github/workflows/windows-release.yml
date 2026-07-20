@@ -39,7 +39,14 @@ jobs:
         run: npm run voice:install:local-asr
 
       - name: Build Windows installer
-        run: npm run dist
+        shell: powershell
+        run: |
+          npm run dist 2>&1 | Tee-Object -FilePath build-output.log
+          if ($LASTEXITCODE -ne 0) {
+            $tail = (Get-Content build-output.log -Tail 60) -join '%0A'
+            Write-Output "::error title=Windows installer build failed::$tail"
+            exit 1
+          }
 
       - name: Upload installer
         uses: actions/upload-artifact@v4
