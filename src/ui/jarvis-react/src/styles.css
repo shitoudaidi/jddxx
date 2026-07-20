@@ -373,6 +373,84 @@ textarea:focus-visible {
   filter: blur(10px);
 }
 
+.first-run-setup {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  overflow: auto;
+  background: #030608;
+}
+
+.first-run-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 22px 28px;
+  width: min(760px, 100%);
+  color: var(--ink);
+}
+
+.first-run-form > header {
+  grid-column: 1 / -1;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(184, 220, 242, 0.22);
+}
+
+.first-run-form > header span { color: var(--cyan-2); font: 10px var(--font-mono); }
+.first-run-form > header h2 { margin: 7px 0 3px; font-size: 25px; font-weight: 620; letter-spacing: 0; }
+.first-run-form > header p { margin: 0; color: var(--ink-3); font-size: 13px; }
+
+.first-run-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.first-run-section > strong,
+.first-run-section > legend {
+  margin-bottom: 2px;
+  color: rgba(238, 247, 255, 0.9);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.voice-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(184, 220, 242, 0.2);
+  border-radius: 8px;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.voice-option.selected { border-color: rgba(126, 232, 255, 0.68); background: rgba(22, 74, 94, 0.26); }
+.voice-option input { margin-top: 3px; accent-color: var(--cyan); }
+.voice-option span { display: grid; gap: 3px; }
+.voice-option strong { color: var(--ink); font-size: 13px; }
+.voice-option small { color: var(--ink-3); font-size: 11px; line-height: 1.45; }
+
+.first-run-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--red);
+  font-size: 12px;
+}
+
+.first-run-submit {
+  grid-column: 1 / -1;
+  justify-self: end;
+  min-width: 148px;
+}
+
 .stage-grid-layer,
 .feed-dim,
 .feed-hairlines {
@@ -3707,6 +3785,12 @@ aside.acui-result-layer[data-connected="true"] ~ .news-ticker {
 }
 
 @media (max-width: 760px) {
+  .first-run-setup { place-items: start center; padding: 24px; }
+  .first-run-form { grid-template-columns: 1fr; }
+  .first-run-form > header,
+  .first-run-error,
+  .first-run-submit { grid-column: 1; }
+  .first-run-submit { justify-self: stretch; }
   .studio-header {
     grid-template-columns: 1fr auto;
     align-items: start;

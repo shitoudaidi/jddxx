@@ -910,6 +910,114 @@ function ClockReadout({ variant = "workbench" }) {
   return <div className={cls("clock-readout", `${variant}-clock`)} aria-label="本地时间"><strong>{clock.time}</strong><span>{clock.date}</span></div>;
 }
 
+function FirstRunSetup({ api, onComplete }) {
+  const [provider, setProvider] = useState("deepseek");
+  const [model, setModel] = useState("deepseek-chat");
+  const [apiKey, setApiKey] = useState("");
+  const [baseURL, setBaseURL] = useState("");
+  const [voiceProvider, setVoiceProvider] = useState("local");
+  const [aliyunApiKey, setAliyunApiKey] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setError("");
+    if (!apiKey.trim()) return setError("请输入 DeepSeek API Key");
+    if (!model.trim()) return setError("请输入模型名称");
+    if (voiceProvider === "aliyun" && !aliyunApiKey.trim()) return setError("请输入阿里云 DashScope API Key");
+    setSaving(true);
+    try {
+      const activationResponse = await fetch(`${api}/activate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify({ provider, model: model.trim(), apiKey: apiKey.trim(), baseURL: baseURL.trim() })
+      });
+      const activationData = await readJson(activationResponse);
+      if (!activationResponse.ok || activationData.ok === false) throw new Error(activationData.error || "模型验证失败");
+
+      const voiceResponse = await fetch(`${api}/settings/voice`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify({
+          voiceProvider,
+          ...(voiceProvider === "aliyun" ? { aliyunApiKey: aliyunApiKey.trim() } : {})
+        })
+      });
+      const voiceData = await readJson(voiceResponse);
+      if (!voiceResponse.ok || voiceData.ok === false) throw new Error(voiceData.error || "语音配置保存失败");
+      localStorage.setItem(VOICE_PROVIDER_KEY, voiceProvider);
+      window.__JARVIS_VOICE_PROVIDER__ = voiceProvider;
+      await onComplete();
+    } catch (submitError) {
+      setError(submitError.message || "初始化失败，请检查配置");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="first-run-setup" aria-labelledby="first-run-title">
+      <form className="first-run-form" onSubmit={submit}>
+        <header>
+          <span>GDDXX-JARVIS</span>
+          <h2 id="first-run-title">初始化</h2>
+          <p>完成核心配置后进入工作台</p>
+        </header>
+
+        <div className="first-run-section">
+          <strong>模型服务</strong>
+          <label className="field">
+            <span>服务商</span>
+            <select value={provider} onChange={(event) => setProvider(event.target.value)}>
+              <option value="deepseek">DeepSeek</option>
+              <option value="custom">兼容 OpenAI 的自定义服务</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>模型名称</span>
+            <input value={model} onChange={(event) => setModel(event.target.value)} placeholder="deepseek-chat" />
+          </label>
+          <label className="field">
+            <span>API Key</span>
+            <input type="password" autoComplete="off" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="sk-..." />
+          </label>
+          {provider === "custom" ? (
+            <label className="field">
+              <span>Base URL</span>
+              <input type="url" value={baseURL} onChange={(event) => setBaseURL(event.target.value)} placeholder="https://.../v1" />
+            </label>
+          ) : null}
+        </div>
+
+        <fieldset className="first-run-section voice-choice">
+          <legend>语音识别</legend>
+          <label className={cls("voice-option", voiceProvider === "local" && "selected")}>
+            <input type="radio" name="voice-provider" value="local" checked={voiceProvider === "local"} onChange={() => setVoiceProvider("local")} />
+            <span><strong>本地</strong><small>语音在电脑上处理，无需额外密钥</small></span>
+          </label>
+          <label className={cls("voice-option", voiceProvider === "aliyun" && "selected")}>
+            <input type="radio" name="voice-provider" value="aliyun" checked={voiceProvider === "aliyun"} onChange={() => setVoiceProvider("aliyun")} />
+            <span><strong>阿里云</strong><small>使用 DashScope 实时语音识别</small></span>
+          </label>
+          {voiceProvider === "aliyun" ? (
+            <label className="field">
+              <span>DashScope API Key</span>
+              <input type="password" autoComplete="off" value={aliyunApiKey} onChange={(event) => setAliyunApiKey(event.target.value)} placeholder="sk-..." />
+            </label>
+          ) : null}
+        </fieldset>
+
+        {error ? <p className="first-run-error" role="alert">{error}</p> : null}
+        <button className="primary first-run-submit" type="submit" disabled={saving} aria-busy={saving}>
+          {saving ? <Loader2 className="spin" size={17} /> : <ArrowRight size={17} />}
+          验证并进入
+        </button>
+      </form>
+    </section>
+  );
+}
+
 function HudTerminal({ messages, sending, lastError }) {
   const visibleMessages = messages.slice(-40);
   const terminalRef = useRef(null);
@@ -2605,6 +2713,7 @@ function App() {
   });
 
   const caps = readiness?.capabilities || {};
+  const needsFirstRunSetup = interfaceMode !== "standby" && activation !== null && !activation?.activated;
   const activationPending = activation === null;
   const readinessPending = readiness === null;
   const coreReady = !!(status?.running && activation?.activated);
@@ -2680,6 +2789,8 @@ function App() {
         >
           <ArrowRight size={22} aria-hidden="true" />
         </button>
+
+        {needsFirstRunSetup ? <FirstRunSetup api={api} onComplete={refreshAll} /> : null}
 
         <HudTerminal messages={messages} sending={sending} lastError={lastError} />
 
