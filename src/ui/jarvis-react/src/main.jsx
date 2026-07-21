@@ -1776,13 +1776,14 @@ function App() {
   const [textInputExpanded, setTextInputExpanded] = useState(false);
   const [voiceRecovery, setVoiceRecovery] = useState(null);
   const [turnElapsedSeconds, setTurnElapsedSeconds] = useState(0);
-  const [appVersion, setAppVersion] = useState("");
+  const [appVersion, setAppVersion] = useState(__JARVIS_APP_VERSION__);
   const [grokBuildStatus, setGrokBuildStatus] = useState(null);
   const { cards: acuiCards, connected: acuiConnected, dismissCard: dismissAcuiCard } = useAcuiCards(api);
 
   useEffect(() => {
     let disposed = false;
-    window.jarvisDesktop?.getVersion?.().then((version) => {
+    const getVersion = window.jarvisDesktop?.getVersion || window.jarvisApp?.getVersion;
+    getVersion?.().then((version) => {
       if (!disposed) setAppVersion(String(version || ""));
     }).catch(() => {});
     return () => { disposed = true; };

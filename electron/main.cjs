@@ -841,6 +841,21 @@ async function runWakeSequenceProbe() {
         ),
       }), 12000);
       if (!ready.ready) return { ok: false, error: "wake probe bridge unavailable" };
+      const titleBranded = /GDDXX-Jarvis/i.test(document.title || "");
+      const footerVersion = await waitFor(() => {
+        const text = document.querySelector(".system-footer")?.textContent || "";
+        return { ready: /GDDXX-Jarvis\\s+v0\\.3\\.0/.test(text), text };
+      }, 3000);
+      const footerVersionVisible = footerVersion.ready;
+      const entry = document.querySelector(".standby-entry");
+      const manualEntryVisible = Boolean(entry && getComputedStyle(entry).display !== "none" && entry.getBoundingClientRect().width >= 40);
+      const manualEntryArrowOnly = Boolean(entry && !entry.textContent.trim() && entry.querySelector("svg"));
+      let coreOnline = false;
+      try {
+        const statusResponse = await fetch(window.__JARVIS_API_BASE__ + "/status");
+        const statusBody = await statusResponse.json();
+        coreOnline = Boolean(statusResponse.ok && statusBody.running);
+      } catch {}
       let wakeAsset = null;
       try {
         const response = await fetch("./audio/wake-greeting.wav");
@@ -877,7 +892,20 @@ async function runWakeSequenceProbe() {
           && monitorDelayMs >= 0
           && monitorDelayMs <= 700
           && workbenchActive
+          && titleBranded
+          && footerVersionVisible
+          && manualEntryVisible
+          && manualEntryArrowOnly
+          && coreOnline
+          && wakeAsset?.ok
+          && !(document.querySelector(".error-banner")?.textContent?.trim())
         ),
+        titleBranded,
+        footerVersionVisible,
+        footerText: footerVersion.text,
+        manualEntryVisible,
+        manualEntryArrowOnly,
+        coreOnline,
         accepted,
         firstSpeechDelayMs,
         monitorDelayMs,

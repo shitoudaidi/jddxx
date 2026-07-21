@@ -65,6 +65,7 @@
     "probe:error-redaction": "node scripts/probe-public-error-redaction.cjs",
     "probe:release-integrity": "node scripts/probe-release-integrity.cjs",
     "probe:packaged-runtime": "node scripts/probe-packaged-runtime.cjs",
+    "probe:packaged-experience": "node scripts/probe-packaged-experience-contract.cjs",
     "probe:tts-repeat": "node scripts/probe-tts-repeat.cjs",
     "rebuild:native": "node ./node_modules/electron-builder/cli.js install-app-deps",
     "rebuild:web": "npm rebuild better-sqlite3",

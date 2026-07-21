@@ -1,12 +1,17 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const uiRoot = path.resolve(rootDir, "src/ui/jarvis-react");
+const appVersion = JSON.parse(readFileSync(path.resolve(rootDir, "package.json"), "utf8")).version;
 
 export default defineConfig({
+  define: {
+    __JARVIS_APP_VERSION__: JSON.stringify(appVersion)
+  },
   root: uiRoot,
   base: "./",
   plugins: [react()],
