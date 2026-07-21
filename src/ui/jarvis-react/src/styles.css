@@ -4142,3 +4142,126 @@ aside.acui-result-layer[data-connected="true"] ~ .news-ticker {
 .app-shell.mode-active .monitor-stage:has(.command-dock.multiline) .intelligence-rail {
   bottom: 118px;
 }
+
+.history-expand {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  align-self: center;
+  gap: 6px;
+  margin: 10px auto 2px;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: #78909a;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.message-channel {
+  color: #657a83;
+  font: 9px/1.2 var(--font-mono);
+  text-transform: uppercase;
+}
+
+.app-shell.mode-active .terminal-line.long .message-body {
+  position: relative;
+  max-height: 154px;
+  overflow: hidden;
+}
+
+.app-shell.mode-active .terminal-line.long.expanded .message-body {
+  max-height: none;
+}
+
+.app-shell.mode-active .terminal-line.long:not(.expanded) .message-body::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 34px;
+  background: linear-gradient(transparent, #070d11);
+  content: "";
+  pointer-events: none;
+}
+
+.app-shell.mode-active .terminal-line.live .message-body::after {
+  display: none;
+}
+
+.app-shell.mode-active .terminal-line.live .message-body::before {
+  display: inline-block;
+  width: 6px;
+  height: 13px;
+  margin-right: 4px;
+  background: #55c9e8;
+  content: "";
+  animation: live-cursor 820ms steps(1, end) infinite;
+}
+
+@keyframes live-cursor {
+  50% { opacity: 0.18; }
+}
+
+.message-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.terminal-line:hover .message-actions,
+.terminal-line:focus-within .message-actions {
+  opacity: 1;
+}
+
+.message-actions button,
+.jump-latest {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  border: 1px solid rgba(85, 201, 232, 0.2);
+  border-radius: 3px;
+  background: rgba(7, 13, 17, 0.92);
+  color: #8ca1a9;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.message-actions button:hover,
+.jump-latest:hover {
+  border-color: rgba(85, 201, 232, 0.55);
+  color: #dceef2;
+}
+
+.jump-latest {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 3;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+}
+
+@media (hover: none) {
+  .message-actions { opacity: 1; }
+}
+
+.app-shell.mode-active .command-dock .keyboard-command,
+.app-shell.mode-active .command-dock .send,
+.app-shell.mode-active .command-dock .replay,
+.app-shell.mode-active .command-dock .music-command {
+  width: 52px;
+  min-width: 0;
+  padding: 0;
+}
+
+@media (max-width: 900px) {
+  .app-shell.mode-active .command-dock .keyboard-command,
+  .app-shell.mode-active .command-dock .send,
+  .app-shell.mode-active .command-dock .replay {
+    width: 48px;
+  }
+}

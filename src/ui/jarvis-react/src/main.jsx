@@ -6,7 +6,10 @@ import {
   ArrowRight,
   CheckCircle2,
   CircleAlert,
+  ChevronDown,
+  ChevronUp,
   CloudSun,
+  Copy,
   Cpu,
   Database,
   FileText,
@@ -1019,18 +1022,33 @@ function FirstRunSetup({ api, onComplete }) {
   );
 }
 
-function HudTerminal({ messages, sending, lastError, turnState, voiceRecovery, onRetryVoice, onUseKeyboard, onDismissError }) {
-  const visibleMessages = messages.slice(-40);
+function HudTerminal({ messages, sending, lastError, turnState, voiceRecovery, onRetryVoice, onUseKeyboard, onDismissError, onReplayMessage }) {
+  const [showAll, setShowAll] = useState(false);
+  const [followLatest, setFollowLatest] = useState(true);
+  const [expandedMessages, setExpandedMessages] = useState(() => new Set());
+  const [copiedId, setCopiedId] = useState(null);
+  const visibleMessages = showAll ? messages : messages.slice(-40);
   const terminalRef = useRef(null);
 
   useEffect(() => {
     const terminal = terminalRef.current;
-    if (!terminal) return;
+    if (!terminal || !followLatest) return;
     const frame = window.requestAnimationFrame(() => {
       terminal.scrollTop = terminal.scrollHeight;
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [messages, sending, lastError]);
+  }, [followLatest, messages, sending, lastError]);
+
+  const jumpToLatest = useCallback(() => {
+    setFollowLatest(true);
+    window.requestAnimationFrame(() => terminalRef.current?.scrollTo({ top: terminalRef.current.scrollHeight, behavior: "smooth" }));
+  }, []);
+
+  const copyMessage = useCallback(async (message) => {
+    await navigator.clipboard.writeText(cleanText(message.content));
+    setCopiedId(message.id);
+    window.setTimeout(() => setCopiedId((current) => current === message.id ? null : current), 1400);
+  }, []);
 
   return (
     <aside className="hud-terminal" aria-label="对话记录">
@@ -1041,7 +1059,23 @@ function HudTerminal({ messages, sending, lastError, turnState, voiceRecovery, o
           <span>{turnState.label}</span>
         </div>
       </div>
-      <div className="terminal-lines" ref={terminalRef}>
+      <div
+        className="terminal-lines"
+        ref={terminalRef}
+        onScroll={(event) => {
+          const element = event.currentTarget;
+          setFollowLatest(element.scrollHeight - element.scrollTop - element.clientHeight < 32);
+        }}
+      >
+        {!showAll && messages.length > 40 ? (
+          <button type="button" className="history-expand" onClick={() => setShowAll(true)}>
+            <ChevronUp size={13} />显示较早的 {messages.length - 40} 条
+          </button>
+        ) : showAll && messages.length > 40 ? (
+          <button type="button" className="history-expand" onClick={() => setShowAll(false)}>
+            <ChevronDown size={13} />收起较早消息
+          </button>
+        ) : null}
         {visibleMessages.length === 0 ? (
           <div className="terminal-empty">
             <Radio size={18} aria-hidden="true" />
@@ -1049,14 +1083,28 @@ function HudTerminal({ messages, sending, lastError, turnState, voiceRecovery, o
             <span>点击麦克风，或按住空格说话</span>
           </div>
         ) : visibleMessages.map((message) => (
-          <div key={message.id} className={cls("terminal-line", message.role)}>
+          <div key={message.id} className={cls("terminal-line", message.role, message.id === "live" && "live", cleanText(message.content).length > 260 && "long", expandedMessages.has(message.id) && "expanded")}>
             <div className="terminal-line-head">
-              <span>{message.role === "user" ? "YOU" : message.role === "jarvis" ? "JARVIS" : "SYSTEM"}</span>
+              <span>{message.role === "user" ? "您 / YOU" : message.role === "jarvis" ? "贾维斯 / JARVIS" : "系统 / SYSTEM"}</span>
               {message.timestamp ? <time>{formatTime(message.timestamp)}</time> : null}
             </div>
-            {message.role === "jarvis"
-              ? <BilingualMessageText content={message.content} compact />
-              : <p>{message.content}</p>}
+            {message.channel ? <small className="message-channel">{message.channel}</small> : null}
+            <div className="message-body">
+              {message.role === "jarvis"
+                ? <BilingualMessageText content={message.content} compact />
+                : <p>{message.content}</p>}
+            </div>
+            {message.role === "jarvis" && message.content ? (
+              <div className="message-actions">
+                {cleanText(message.content).length > 260 ? <button type="button" onClick={() => setExpandedMessages((current) => {
+                  const next = new Set(current);
+                  if (next.has(message.id)) next.delete(message.id); else next.add(message.id);
+                  return next;
+                })}>{expandedMessages.has(message.id) ? <ChevronUp size={13} /> : <ChevronDown size={13} />}{expandedMessages.has(message.id) ? "收起" : "展开"}</button> : null}
+                <button type="button" onClick={() => copyMessage(message)}><Copy size={13} />{copiedId === message.id ? "已复制" : "复制"}</button>
+                <button type="button" onClick={() => onReplayMessage(message.content)}><Volume2 size={13} />重播</button>
+              </div>
+            ) : null}
           </div>
         ))}
         {lastError ? (
@@ -1074,6 +1122,7 @@ function HudTerminal({ messages, sending, lastError, turnState, voiceRecovery, o
           </div>
         ) : null}
       </div>
+      {!followLatest ? <button type="button" className="jump-latest" onClick={jumpToLatest}><ChevronDown size={14} />最新消息</button> : null}
     </aside>
   );
 }
@@ -1651,6 +1700,7 @@ function App() {
   const [textInputOpen, setTextInputOpen] = useState(false);
   const [textInputExpanded, setTextInputExpanded] = useState(false);
   const [voiceRecovery, setVoiceRecovery] = useState(null);
+  const [turnElapsedSeconds, setTurnElapsedSeconds] = useState(0);
   const [grokBuildStatus, setGrokBuildStatus] = useState(null);
   const { cards: acuiCards, connected: acuiConnected, dismissCard: dismissAcuiCard } = useAcuiCards(api);
 
@@ -1698,6 +1748,7 @@ function App() {
   const visibleStreamRef = useRef(false);
   const postReplyListenMetricsRef = useRef({ scheduledAt: 0, startedAt: 0 });
   const voiceRepairCountRef = useRef(0);
+  const turnStartedAtRef = useRef(0);
 
   const openTextInput = useCallback(() => {
     setTextInputOpen(true);
@@ -2153,7 +2204,24 @@ function App() {
       getMode: () => interfaceModeRef.current,
       enterWorkbench: () => enterWorkbench({ listenAfter: false }),
       acceptWakeText: (text) => acceptWakePhrase(text),
-      getWakeMetrics: () => ({ ...wakeMetricsRef.current })
+      getWakeMetrics: () => ({ ...wakeMetricsRef.current }),
+      showConversationFixture: () => setMessages(Array.from({ length: 45 }, (_, index) => ({
+        id: `probe-message-${index}`,
+        role: index % 2 ? "jarvis" : "user",
+        content: index === 43 ? `这是一条用于验证长回复折叠的内容。${"对话需要保持清晰、可回看、可复制。".repeat(24)}` : `对话样本 ${index + 1}`,
+        channel: index % 2 ? "LIVE PROBE" : "TUI",
+        timestamp: new Date(Date.now() - (45 - index) * 1000).toISOString()
+      })).concat({ id: "live", role: "jarvis", content: "正在生成回复", channel: "LIVE" })),
+      appendConversationFixture: () => setMessages((current) => current.concat({ id: `probe-new-${Date.now()}`, role: "jarvis", content: "最新回复", channel: "LIVE" })),
+      beginThinkingFixture: () => {
+        turnStartedAtRef.current = Date.now() - 2100;
+        setSending(true);
+        setVisualState("thinking");
+      },
+      endThinkingFixture: () => {
+        setSending(false);
+        setVisualState("idle");
+      }
     };
     return () => { delete window.__jarvisUiProbe; };
   }, [acceptWakePhrase, enterWorkbench]);
@@ -2403,6 +2471,8 @@ function App() {
     activeTurnRef.current = { token: turnToken, afterId, voice: fromVoice, completed: false };
     visibleStreamRef.current = false;
     lastVoiceTurnRef.current = fromVoice;
+    turnStartedAtRef.current = Date.now();
+    setTurnElapsedSeconds(0);
     setDraft("");
     setTextInputExpanded(false);
     setSending(true);
@@ -2445,6 +2515,14 @@ function App() {
   }, [acceptWakePhrase, apiFetch, clearReplyPoll, draft, enterWorkbench, failActiveTurn, inferredEngineeringPrompt, isLikelySelfEcho, pollForReply, refreshAll, schedulePostReplyListen, scheduleWakeListen, sending, startEngineeringTask, toggleAmbientMusic]);
 
   sendMessageRef.current = sendMessage;
+
+  useEffect(() => {
+    if (!sending || !turnStartedAtRef.current) return undefined;
+    const update = () => setTurnElapsedSeconds(Math.max(0, Math.floor((Date.now() - turnStartedAtRef.current) / 1000)));
+    update();
+    const timer = window.setInterval(update, 1000);
+    return () => window.clearInterval(timer);
+  }, [sending]);
 
   const handleCoreEvent = useCallback((payload) => {
     const type = payload?.type;
@@ -2770,11 +2848,11 @@ function App() {
   }, [messages]);
 
   const turnState = useMemo(() => {
-    if (sending || visualState === "thinking") return { label: "贾维斯思考中", tone: "thinking" };
+    if (sending || visualState === "thinking") return { label: `贾维斯思考中${turnElapsedSeconds ? ` ${turnElapsedSeconds}s` : ""}`, tone: "thinking" };
     if (visualState === "speaking") return { label: "贾维斯正在说", tone: "speaking" };
     if (voiceActive || visualState === "listening") return { label: "请说，我在听", tone: "listening" };
     return { label: "语音待命", tone: "ready" };
-  }, [sending, visualState, voiceActive]);
+  }, [sending, turnElapsedSeconds, visualState, voiceActive]);
 
   const dockEnergy = amplifyAudioLevel(audioLevel);
   const dockBars = Array.from({ length: 18 }, (_, index) => {
@@ -2883,6 +2961,7 @@ function App() {
           onRetryVoice={retryVoice}
           onUseKeyboard={openTextInput}
           onDismissError={dismissVoiceError}
+          onReplayMessage={(content) => speakReply(content)}
         />
 
         <JarvisWorkbench

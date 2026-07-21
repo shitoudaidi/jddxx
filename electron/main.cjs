@@ -1018,15 +1018,19 @@ async function runLayoutProbe() {
       await waitFrame();
       const multilineExpanded = dock?.classList.contains("multiline") && dock.getBoundingClientRect().height >= 100;
       const dockRect = dock?.getBoundingClientRect();
-      const childrenInside = dockRect ? [...dock.children].every((child) => {
+      const outsideChildren = dockRect ? [...dock.children].filter((child) => {
         const rect = child.getBoundingClientRect();
-        return rect.left >= dockRect.left - 1 && rect.right <= dockRect.right + 1 && rect.top >= dockRect.top - 1 && rect.bottom <= dockRect.bottom + 1;
-      }) : false;
+        return rect.left < dockRect.left - 1 || rect.right > dockRect.right + 1 || rect.top < dockRect.top - 1 || rect.bottom > dockRect.bottom + 1;
+      }).map((child) => {
+        const rect = child.getBoundingClientRect();
+        return { className: child.className || child.tagName, top: Math.round(rect.top), bottom: Math.round(rect.bottom), left: Math.round(rect.left), right: Math.round(rect.right) };
+      }) : [{ className: "dock-missing" }];
+      const childrenInside = outsideChildren.length === 0;
 
       return {
         ok: Boolean(slashOpened && escapeClosed && retryAvailable && diagnosticVisible && dismissCleared && deviceOpenedText && deviceSkipsRetry && assertiveAlert && multilineExpanded && childrenInside),
         slashOpened, escapeClosed, retryAvailable, diagnosticVisible, dismissCleared,
-        deviceOpenedText, deviceSkipsRetry, assertiveAlert, multilineExpanded, childrenInside,
+        deviceOpenedText, deviceSkipsRetry, assertiveAlert, multilineExpanded, childrenInside, outsideChildren,
       };
     })();
   `, true);
@@ -1043,6 +1047,55 @@ async function runLayoutProbe() {
       if (input) { input.value = ""; input.dispatchEvent(new Event("input", { bubbles: true })); }
     })();
   `, true);
+
+  const conversation = await mainWindow.webContents.executeJavaScript(`
+    (async () => {
+      const waitFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      window.__jarvisUiProbe?.showConversationFixture?.();
+      await waitFrame();
+      const historyButton = document.querySelector(".history-expand");
+      const historyCountVisible = /显示较早的/.test(historyButton?.textContent || "");
+      historyButton?.click();
+      await waitFrame();
+      const allHistoryVisible = document.querySelectorAll(".terminal-line").length >= 46;
+      const channelVisible = [...document.querySelectorAll(".message-channel")].some((item) => item.textContent.includes("LIVE PROBE"));
+      const bilingualRoles = [...document.querySelectorAll(".terminal-line-head > span")].some((item) => item.textContent.includes("贾维斯 / JARVIS"));
+      const longMessage = document.querySelector(".terminal-line.long");
+      const longCollapsed = Boolean(longMessage && !longMessage.classList.contains("expanded") && longMessage.querySelector(".message-actions button"));
+      const expandButton = [...(longMessage?.querySelectorAll(".message-actions button") || [])].find((item) => item.textContent.includes("展开"));
+      expandButton?.click();
+      await waitFrame();
+      const longExpanded = longMessage?.classList.contains("expanded");
+      const perMessageActions = [...(longMessage?.querySelectorAll(".message-actions button") || [])].some((item) => item.textContent.includes("复制"))
+        && [...(longMessage?.querySelectorAll(".message-actions button") || [])].some((item) => item.textContent.includes("重播"));
+      const liveMessage = document.querySelector(".terminal-line.live .message-body");
+      const liveCursor = getComputedStyle(liveMessage, "::before").animationName === "live-cursor";
+
+      const terminal = document.querySelector(".terminal-lines");
+      terminal.scrollTop = 0;
+      terminal.dispatchEvent(new Event("scroll", { bubbles: true }));
+      await waitFrame();
+      window.__jarvisUiProbe?.appendConversationFixture?.();
+      await waitFrame();
+      const readingPositionPreserved = terminal.scrollTop < 4 && Boolean(document.querySelector(".jump-latest"));
+
+      window.__jarvisUiProbe?.beginThinkingFixture?.();
+      await new Promise((resolve) => setTimeout(resolve, 1150));
+      const elapsedVisible = /思考中\\s+\\d+s/.test(document.querySelector(".turn-owner")?.textContent || "");
+      window.__jarvisUiProbe?.endThinkingFixture?.();
+
+      return {
+        ok: Boolean(historyCountVisible && allHistoryVisible && channelVisible && bilingualRoles && longCollapsed && longExpanded && perMessageActions && liveCursor && readingPositionPreserved && elapsedVisible),
+        historyCountVisible, allHistoryVisible, channelVisible, bilingualRoles, longCollapsed, longExpanded,
+        perMessageActions, liveCursor, readingPositionPreserved, elapsedVisible,
+      };
+    })();
+  `, true);
+  await mainWindow.webContents.executeJavaScript("new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))", true);
+  const conversationImage = await mainWindow.webContents.capturePage();
+  const conversationScreenshot = path.join(outputDir, "jarvis-layout-conversation.png");
+  fs.writeFileSync(conversationScreenshot, conversationImage.toPNG());
+  snapshots.push({ id: "conversation", requested: { width: 1380, height: 880 }, screenshot: conversationScreenshot, ...conversation });
 
   mainWindow.setSize(1380, 880, false);
   mainWindow.center();
