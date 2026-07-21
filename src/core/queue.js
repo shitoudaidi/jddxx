@@ -91,6 +91,19 @@ export function popMessage() {
   return queues.user.shift() || queues.background.shift() || null
 }
 
+export function cancelQueuedMessage(turnId) {
+  const target = String(turnId || '').trim()
+  if (!target) return false
+  for (const queue of Object.values(queues)) {
+    const index = queue.findIndex(entry => String(entry?.turnId || '') === target)
+    if (index >= 0) {
+      queue.splice(index, 1)
+      return true
+    }
+  }
+  return false
+}
+
 // 把消息重新放回队列头部（LLM 失败后重试用），保留原始字段并带上 retryCount
 export function requeueMessage(msg, retryCount) {
   const queueName = msg?.queueName === 'background' ? 'background' : 'user'

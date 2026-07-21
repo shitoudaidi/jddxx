@@ -4282,6 +4282,26 @@ aside.acui-result-layer[data-connected="true"] ~ .news-ticker {
 .app-shell.mode-active .command-dock:not(.text-open) .dock-input,
 .app-shell.mode-active .command-dock:not(.text-open) .send { display: none; }
 
+.app-shell.mode-active .command-dock.turn-active:not(.text-open) {
+  grid-template-columns: 56px 44px 48px 48px 48px 48px;
+}
+
+.app-shell.mode-active .command-dock.turn-active:not(.text-open) .send {
+  display: inline-flex;
+}
+
+.app-shell.mode-active .command-dock .send.cancel {
+  color: #fff4f2;
+  border-color: rgba(255, 111, 97, 0.72);
+  background: rgba(104, 24, 20, 0.72);
+  box-shadow: 0 0 18px rgba(255, 83, 69, 0.18);
+}
+
+.app-shell.mode-active .command-dock .send.cancel:hover {
+  border-color: rgba(255, 150, 138, 0.92);
+  background: rgba(133, 31, 25, 0.86);
+}
+
 .app-shell.mode-active .command-dock:not(.text-open) .voice-command {
   width: 56px;
   min-width: 56px;

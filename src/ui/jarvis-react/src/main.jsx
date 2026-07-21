@@ -1726,6 +1726,7 @@ function App() {
   const speechPrefetchStartedRef = useRef(false);
   const speechCacheRef = useRef(new Map());
   const activeTurnRef = useRef(null);
+  const submitLockRef = useRef(false);
   const visibleStreamRef = useRef(false);
   const postReplyListenMetricsRef = useRef({ scheduledAt: 0, startedAt: 0 });
   const voiceRepairCountRef = useRef(0);
@@ -2308,6 +2309,7 @@ function App() {
     if (options.turnToken && turn.token !== options.turnToken) return false;
     turn.completed = true;
     activeTurnRef.current = null;
+    submitLockRef.current = false;
     clearReplyPoll();
     setSending(false);
     setVisualState("idle");
@@ -2319,19 +2321,50 @@ function App() {
     return true;
   }, [clearReplyPoll, reloadAfterEvent, speakReply]);
 
-  const failActiveTurn = useCallback((message, turnToken = null) => {
+  const failActiveTurn = useCallback((message, turnToken = null, { restoreDraft = true } = {}) => {
     const turn = activeTurnRef.current;
     if (turnToken && turn?.token !== turnToken) return false;
     activeTurnRef.current = null;
+    submitLockRef.current = false;
     lastVoiceTurnRef.current = false;
     visibleStreamRef.current = false;
     clearReplyPoll();
     setSending(false);
     setVisualState("alert");
     setLastError(message || "运行时错误");
+    if (restoreDraft && turn?.content) {
+      setDraft(turn.content);
+      setTextInputOpen(true);
+    }
     if (turn?.voice) schedulePostReplyListen();
     return true;
   }, [clearReplyPoll, schedulePostReplyListen]);
+
+  const cancelActiveTurn = useCallback(async () => {
+    const turn = activeTurnRef.current;
+    if (!turn) return false;
+    activeTurnRef.current = null;
+    submitLockRef.current = false;
+    visibleStreamRef.current = false;
+    clearReplyPoll();
+    setMessages((current) => current.filter((item) => item.id !== "live"));
+    setSending(false);
+    setVisualState("idle");
+    setDraft(turn.content || "");
+    setTextInputOpen(true);
+    setVoiceStatusText("本轮已停止，输入已保留");
+    setLastError("");
+    try {
+      await apiFetch("/conversation/cancel", {
+        method: "POST",
+        body: JSON.stringify({ turn_id: turn.token })
+      });
+    } catch (error) {
+      setLastError(`界面已停止，但核心取消未确认：${error.message || "连接失败"}`);
+    }
+    window.requestAnimationFrame(() => inputRef.current?.focus());
+    return true;
+  }, [apiFetch, clearReplyPoll]);
 
   const pollForReply = useCallback((afterId, voice, turnToken) => {
     clearReplyPoll();
@@ -2352,7 +2385,7 @@ function App() {
           return;
         }
         if (Date.now() - startedAt > 95_000) {
-          failActiveTurn("这轮对话超过 95 秒没有返回，输入已释放。", turnToken);
+          failActiveTurn("这轮对话超过 95 秒没有返回，原输入已保留，可直接重试。", turnToken);
         }
       } catch {
         // transient startup or reload failures should not stop polling
@@ -2366,7 +2399,7 @@ function App() {
     const fromVoice = typeof payload === "object" && payload ? isVoiceChannel(payload.channel || payload.label) : false;
     const text = typeof payload === "object" && payload ? payload.text : draft;
     const content = String(text || "").trim();
-    if (!content || sending) return;
+    if (!content || sending || submitLockRef.current || activeTurnRef.current) return;
     voiceRepairCountRef.current = 0;
     setVoiceRecovery(null);
     window.clearTimeout(postReplyListenRef.current);
@@ -2449,7 +2482,8 @@ function App() {
     const channel = fromVoice ? "语音识别" : "TUI";
     const afterId = maxMessageIdRef.current;
     const turnToken = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    activeTurnRef.current = { token: turnToken, afterId, voice: fromVoice, completed: false };
+    submitLockRef.current = true;
+    activeTurnRef.current = { token: turnToken, afterId, voice: fromVoice, content, completed: false };
     visibleStreamRef.current = false;
     lastVoiceTurnRef.current = fromVoice;
     turnStartedAtRef.current = Date.now();
@@ -2471,9 +2505,10 @@ function App() {
     ]);
 
     try {
-      const sent = await apiFetch("/message", { method: "POST", body: JSON.stringify({ from_id: USER_ID, channel, content }) });
+      const sent = await apiFetch("/message", { method: "POST", body: JSON.stringify({ from_id: USER_ID, channel, content, turn_id: turnToken }) });
       if (sent?.ignored) {
         activeTurnRef.current = null;
+        submitLockRef.current = false;
         lastVoiceTurnRef.current = false;
         clearReplyPoll();
         setSending(false);
@@ -2486,7 +2521,7 @@ function App() {
       setVisualState("thinking");
       pollForReply(afterId, fromVoice, turnToken);
     } catch (error) {
-      failActiveTurn(error.message || "发送失败", turnToken);
+      failActiveTurn(`${error.message || "发送失败"}。原输入已保留，可直接重试。`, turnToken);
       setMessages((current) => [
         ...current,
         { id: `error-${Date.now()}`, role: "system", content: error.message || "发送失败", channel: "SYSTEM" }
@@ -2576,7 +2611,7 @@ function App() {
       window.__jarvisTurnProbe = {
       begin: ({ voice = false, withPoll = false } = {}) => {
         const token = `probe-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-        activeTurnRef.current = { token, afterId: maxMessageIdRef.current, voice, completed: false };
+        activeTurnRef.current = { token, afterId: maxMessageIdRef.current, voice, content: "保留这条测试指令", completed: false };
         clearReplyPoll();
         if (withPoll) pollRef.current = window.setInterval(() => {}, 60_000);
         visibleStreamRef.current = false;
@@ -2587,6 +2622,7 @@ function App() {
         return token;
       },
       emit: (type, data = {}) => handleCoreEvent({ type, data }),
+      cancel: () => cancelActiveTurn(),
       speakAndResume: async () => {
         try { window.jarvisVoice?.stop?.(); } catch {}
         await speakReply(WAKE_GREETING, { force: true });
@@ -2597,6 +2633,7 @@ function App() {
         pollActive: !!pollRef.current,
         visibleStream: visibleStreamRef.current,
         sending,
+        draft,
         lastError,
         voiceActive: !!window.jarvisVoice?.isActive?.(),
         voiceStatusText,
@@ -2611,7 +2648,7 @@ function App() {
       disposed = true;
       delete window.__jarvisTurnProbe;
     };
-  }, [clearReplyPoll, handleCoreEvent, lastError, messages, sending, speakReply, voiceStatusText]);
+  }, [cancelActiveTurn, clearReplyPoll, draft, handleCoreEvent, lastError, messages, sending, speakReply, voiceStatusText]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2797,6 +2834,11 @@ function App() {
         openTextInput();
         return;
       }
+      if (event.key === "Escape" && activeTurnRef.current) {
+        event.preventDefault();
+        cancelActiveTurn();
+        return;
+      }
       if (event.key === "Escape" && textInputOpen && !draft.trim()) {
         event.preventDefault();
         setTextInputOpen(false);
@@ -2822,7 +2864,7 @@ function App() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [draft, openTextInput, textInputOpen]);
+  }, [cancelActiveTurn, draft, openTextInput, textInputOpen]);
 
   const latestJarvisText = useMemo(() => {
     return [...messages].reverse().find((item) => item.role === "jarvis")?.content || "";
@@ -2990,7 +3032,7 @@ function App() {
         />
 
         <form
-          className={cls("command-dock", textInputOpen && "text-open", textInputExpanded && "multiline")}
+          className={cls("command-dock", textInputOpen && "text-open", textInputExpanded && "multiline", sending && "turn-active")}
           onSubmit={(event) => {
             event.preventDefault();
             sendMessage();
@@ -3041,13 +3083,13 @@ function App() {
               rows={1}
             />
           </div>
-          <button className="primary send" type="submit" disabled={sending || !draft.trim()} aria-label="发送指令" title="发送指令">
-            {sending ? <Loader2 className="spin" size={17} /> : <Send size={17} />}
-            <span className="sr-only">发送</span>
+          <button className={cls("primary send", sending && "cancel")} type={sending ? "button" : "submit"} disabled={!sending && !draft.trim()} aria-label={sending ? "停止生成" : "发送指令"} title={sending ? "停止生成 (Esc)" : "发送指令"} onClick={sending ? () => cancelActiveTurn() : undefined}>
+            {sending ? <Square size={16} fill="currentColor" /> : <Send size={17} />}
+            <span className="sr-only">{sending ? "停止" : "发送"}</span>
           </button>
-          <button className="secondary replay" type="button" disabled={!latestJarvisText || sending} aria-label="重播上一条 Jarvis 回复" title="重播上一条回复" onClick={() => speakReply(latestJarvisText)}>
-            <Volume2 size={17} />
-            <span className="sr-only">重播</span>
+          <button className="secondary replay" type="button" disabled={visualState !== "speaking" && (!latestJarvisText || sending)} aria-label={visualState === "speaking" ? "停止语音播报" : "重播上一条 Jarvis 回复"} title={visualState === "speaking" ? "停止播报" : "重播上一条回复"} onClick={visualState === "speaking" ? stopTTSPlayback : () => speakReply(latestJarvisText)}>
+            {visualState === "speaking" ? <Square size={15} fill="currentColor" /> : <Volume2 size={17} />}
+            <span className="sr-only">{visualState === "speaking" ? "停止播报" : "重播"}</span>
           </button>
           <button className={cls("secondary", "music-command", musicEnabled && "active")} type="button" onClick={() => toggleAmbientMusic()} aria-pressed={musicEnabled} aria-label={musicEnabled ? "关闭背景音乐" : "开启背景音乐"} title={musicEnabled ? "关闭背景音乐" : "开启背景音乐"}>
             {musicEnabled ? <Music2 size={17} /> : <VolumeX size={17} />}

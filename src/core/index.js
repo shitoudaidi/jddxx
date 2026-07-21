@@ -16,7 +16,7 @@ import { runRuntimeInjector } from './context/runtime-injector.js'
 import { selectContextSections } from './context/section-gate.js'
 import { getDB, getConfig, setConfig, getKnownEntities, getOrInitBirthTime, insertConversation, insertMemory, getRecentConversationPartners, getDueReminders, markReminderFired, advanceReminderDueAt, getNextPendingReminder, getMemoryCount, getRecentConversationTimeline, loadFocusStack, loadThreadState, saveThreadState, setCurrentFocusTopic, setCurrentThreadId, updateUserMessageFocusTopic, reassignConversationsThread, insertActionLog } from './db.js'
 import { calculateNextDueAt, autoSpeakForVoiceReply, detectOpenFollowupQuestion } from './capabilities/executor.js'
-import { popMessage, hasMessages, hasUserMessages, getQueueSnapshot, setInterruptCallback, requeueMessage, pushMessage } from './queue.js'
+import { popMessage, hasMessages, hasUserMessages, getQueueSnapshot, setInterruptCallback, requeueMessage, pushMessage, cancelQueuedMessage } from './queue.js'
 import { startTUI } from './tui.js'
 import { startAPI } from './api.js'
 import { emitEvent, emitUICommand, addActiveUICard, hasACUIClient, setStickyEvent, clearStickyEvent } from './events.js'
@@ -840,12 +840,13 @@ function shouldPreemptFor(entry) {
   return false
 }
 
-function beginExecution({ priority, kind, label, controller }) {
+function beginExecution({ priority, kind, label, controller, turnId = '' }) {
   currentAbortController = controller
   currentExecution = {
     priority,
     kind,
     label,
+    turnId,
     startedAt: Date.now(),
   }
 }
@@ -979,6 +980,7 @@ async function runTurn(input, label, msg = null) {
       kind: isTick ? 'tick' : (fastUserPath ? 'user' : 'background'),
       label,
       controller,
+      turnId: msg?.turnId || '',
     })
 
     if (isTick && !shouldSkipStartupSelfCheck()) ensureStartupSelfCheckState()
@@ -1963,6 +1965,12 @@ async function main() {
       console.log(`[LLM] Activated: ${config.provider} (${config.model})`)
       registerMinimaxIfAvailable()
       startConsciousnessLoop({ runImmediateTick: true }).catch(err => console.error('[system] Main loop failed to start:', err))
+    },
+    onCancelTurn: (turnId) => {
+      const queued = cancelQueuedMessage(turnId)
+      const running = String(currentExecution?.turnId || '') === String(turnId)
+      if (running) currentAbortController?.abort?.('user-cancelled')
+      return { cancelled: queued || running, state: running ? 'running' : queued ? 'queued' : 'settled' }
     },
   })
   refreshStartupEnvironment().catch(err => console.warn('[startup] background environment refresh crashed:', err?.message || err))

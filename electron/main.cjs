@@ -1102,12 +1102,13 @@ async function runLayoutProbe() {
       window.__jarvisUiProbe?.beginThinkingFixture?.();
       await new Promise((resolve) => setTimeout(resolve, 1150));
       const elapsedVisible = /思考中\\s+\\d+s/.test(document.querySelector(".turn-owner")?.textContent || "");
-      window.__jarvisUiProbe?.endThinkingFixture?.();
+      const cancelButton = document.querySelector(".command-dock .send.cancel");
+      const cancelButtonVisible = Boolean(cancelButton && getComputedStyle(cancelButton).display !== "none" && cancelButton.getAttribute("aria-label") === "停止生成");
 
       return {
-        ok: Boolean(historyCountVisible && allHistoryVisible && channelVisible && bilingualRoles && longCollapsed && longExpanded && perMessageActions && liveCursor && readingPositionPreserved && elapsedVisible),
+        ok: Boolean(historyCountVisible && allHistoryVisible && channelVisible && bilingualRoles && longCollapsed && longExpanded && perMessageActions && liveCursor && readingPositionPreserved && elapsedVisible && cancelButtonVisible),
         historyCountVisible, allHistoryVisible, channelVisible, bilingualRoles, longCollapsed, longExpanded,
-        perMessageActions, liveCursor, readingPositionPreserved, elapsedVisible,
+        perMessageActions, liveCursor, readingPositionPreserved, elapsedVisible, cancelButtonVisible,
       };
     })();
   `, true);
@@ -1116,6 +1117,7 @@ async function runLayoutProbe() {
   const conversationScreenshot = path.join(outputDir, "jarvis-layout-conversation.png");
   fs.writeFileSync(conversationScreenshot, conversationImage.toPNG());
   snapshots.push({ id: "conversation", requested: { width: 1380, height: 880 }, screenshot: conversationScreenshot, ...conversation });
+  await mainWindow.webContents.executeJavaScript("window.__jarvisUiProbe?.endThinkingFixture?.()", true);
 
   mainWindow.setSize(1380, 880, false);
   mainWindow.center();
@@ -1384,6 +1386,14 @@ async function runTurnLifecycleProbe() {
       await settle();
       const duplicate = window.__jarvisTurnProbe.snapshot();
 
+      const cancelToken = window.__jarvisTurnProbe.begin({ voice: false, withPoll: true });
+      window.__jarvisTurnProbe.emit("stream_start", { plainReply: true });
+      window.__jarvisTurnProbe.emit("stream_chunk", { text: "partial response to remove" });
+      await settle();
+      await window.__jarvisTurnProbe.cancel();
+      await settle();
+      const cancelled = window.__jarvisTurnProbe.snapshot();
+
       const errorToken = window.__jarvisTurnProbe.begin({ voice: false, withPoll: true });
       await settle();
       window.__jarvisTurnProbe.emit("error", { error: "Synthetic runtime failure" });
@@ -1412,13 +1422,19 @@ async function runTurnLifecycleProbe() {
           && !completed.visibleStream
           && duplicate.activeTurn === null
           && !duplicate.sending
+          && cancelled.activeTurn === null
+          && !cancelled.sending
+          && !cancelled.pollActive
+          && !cancelled.visibleStream
+          && cancelled.draft === "保留这条测试指令"
+          && !hasText(cancelled, "partial response to remove")
           && failed.activeTurn === null
           && !failed.sending
           && !failed.pollActive
           && failed.lastError === "Synthetic runtime failure"
-          && resumeDelayMs >= 850
-          && resumeDelayMs <= 1400
-          && resumedVoice.voiceActive,
+          && resumeDelayMs >= 80
+          && resumeDelayMs <= 400
+          && /麦克风待命/.test(resumedVoice.voiceStatusText || ""),
         token,
         errorToken,
         background: { leaked: hasText(background, "SECRET_BACKGROUND_CHUNK"), sending: background.sending },
@@ -1427,6 +1443,7 @@ async function runTurnLifecycleProbe() {
         afterDeliveredTelemetry: { active: afterDeliveredTelemetry.activeTurn?.token === token, lastError: afterDeliveredTelemetry.lastError },
         completed: { activeTurn: completed.activeTurn, sending: completed.sending, pollActive: completed.pollActive, visibleStream: completed.visibleStream },
         duplicate: { activeTurn: duplicate.activeTurn, sending: duplicate.sending },
+        cancelled: { cancelToken, activeTurn: cancelled.activeTurn, sending: cancelled.sending, pollActive: cancelled.pollActive, visibleStream: cancelled.visibleStream, draft: cancelled.draft, partialRemoved: !hasText(cancelled, "partial response to remove") },
         failed: { activeTurn: failed.activeTurn, sending: failed.sending, pollActive: failed.pollActive, lastError: failed.lastError },
         voiceResume: {
           immediatelyActive: afterSpeech.voiceActive,

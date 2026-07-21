@@ -998,7 +998,7 @@ function stripAssistantHistoryLabels(content) {
     .trim()
 }
 
-export function startAPI(port = 3721, { getStateSnapshot = null, onActivated = null } = {}) {
+export function startAPI(port = 3721, { getStateSnapshot = null, onActivated = null, onCancelTurn = null } = {}) {
   const onActivatedCallback = onActivated
   const host = getApiHost()
   let pendingActivation = null
@@ -1084,6 +1084,21 @@ export function startAPI(port = 3721, { getStateSnapshot = null, onActivated = n
 
     if (!installRequestBodyGuard(req, res, url.pathname)) return
 
+    if (req.method === 'POST' && url.pathname === '/conversation/cancel') {
+      try {
+        const body = await readJsonBody(req)
+        const turnId = String(body.turn_id || body.turnId || '').trim().slice(0, 128)
+        if (!turnId) return jsonResponse(res, 400, { ok: false, error: 'turn_id required' })
+        const result = typeof onCancelTurn === 'function'
+          ? await onCancelTurn(turnId)
+          : { cancelled: false, state: 'unavailable' }
+        emitEvent('turn_cancelled', { turn_id: turnId, ...result })
+        return jsonResponse(res, 200, { ok: true, turn_id: turnId, ...result })
+      } catch (e) {
+        return jsonResponse(res, 400, { ok: false, error: e.message })
+      }
+    }
+
     // POST /message — send message to agent
     if (req.method === 'POST' && url.pathname === '/message') {
       try {
@@ -1113,13 +1128,15 @@ export function startAPI(port = 3721, { getStateSnapshot = null, onActivated = n
           ?? (String(body.evaluation_mode || body.evaluationMode || '').toLowerCase() === 'strict' ? true : undefined)
         const forbiddenTools = body.forbidden_tools ?? body.forbiddenTools
         const meta = {}
+        const turnId = String(body.turn_id || body.turnId || '').trim().slice(0, 128)
+        if (turnId) meta.turnId = turnId
         if (strictEvaluation !== undefined) meta.strictEvaluation = strictEvaluation
         if (Array.isArray(forbiddenTools)) {
           meta.forbiddenTools = forbiddenTools.slice(0, 64).map(tool => String(tool).slice(0, 128))
         }
         pushMessage(safeFromId, trimmed, safeChannel, meta)
         emitEvent('message_in', { from_id: safeFromId, content: trimmed, channel: safeChannel, timestamp: new Date().toISOString() })
-        jsonResponse(res, 200, { ok: true, agent_name: getAgentName() })
+        jsonResponse(res, 200, { ok: true, turn_id: turnId || null, agent_name: getAgentName() })
       } catch (e) {
         jsonResponse(res, 400, { error: e.message })
       }
