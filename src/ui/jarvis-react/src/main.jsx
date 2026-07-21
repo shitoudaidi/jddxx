@@ -77,6 +77,11 @@ function isAsrEchoNoise(value) {
   const normalized = normalizeEchoText(value);
   return /chinese(?:light|like|lite|right)/i.test(normalized);
 }
+
+function isEditableOrInteractiveTarget(target) {
+  if (!(target instanceof Element)) return false;
+  return Boolean(target.closest('input, textarea, select, button, a[href], [contenteditable="true"], [role="button"]'));
+}
 const WAKE_RESTART_MS = 360;
 const JARVIS_TTS_VOICE_ID = "jarvis-high";
 
@@ -1819,6 +1824,7 @@ function App() {
   const voiceRepairCountRef = useRef(0);
   const turnStartedAtRef = useRef(0);
   const composingRef = useRef(false);
+  const pttHeldRef = useRef(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -2978,8 +2984,9 @@ function App() {
   useEffect(() => {
     const onKeyDown = (event) => {
       const active = document.activeElement;
-      const typing = active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName);
-      if (event.key === "/" && !typing && interfaceModeRef.current === "active") {
+      const interactive = isEditableOrInteractiveTarget(active);
+      if (event.isComposing || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.key === "/" && !interactive && interfaceModeRef.current === "active") {
         event.preventDefault();
         openTextInput();
         return;
@@ -2996,23 +3003,33 @@ function App() {
         return;
       }
       if (event.code !== "Space") return;
-      if (typing || event.repeat) return;
+      if (interactive || event.repeat || pttHeldRef.current) return;
       event.preventDefault();
+      pttHeldRef.current = true;
       window.jarvisVoice?.pttStart?.();
     };
     const onKeyUp = (event) => {
-      if (event.code !== "Space") return;
-      const active = document.activeElement;
-      const typing = active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName);
-      if (typing) return;
+      if (event.code !== "Space" || !pttHeldRef.current) return;
       event.preventDefault();
+      pttHeldRef.current = false;
       window.jarvisVoice?.pttEnd?.();
     };
+    const releasePtt = () => {
+      if (!pttHeldRef.current) return;
+      pttHeldRef.current = false;
+      window.jarvisVoice?.pttEnd?.();
+    };
+    const onVisibility = () => { if (document.visibilityState !== "visible") releasePtt(); };
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", releasePtt);
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", releasePtt);
+      document.removeEventListener("visibilitychange", onVisibility);
+      releasePtt();
     };
   }, [cancelActiveTurn, draft, openTextInput, textInputOpen]);
 
