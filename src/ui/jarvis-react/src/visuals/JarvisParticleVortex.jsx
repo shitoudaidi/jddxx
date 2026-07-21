@@ -2,7 +2,15 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 const PARTICLE_SOURCE = "./visuals/particle-vortex-source.png";
-const PARTICLE_COUNT = 76000;
+const DEFAULT_PARTICLE_COUNT = 76000;
+
+function particleBudget() {
+  const cores = Number(navigator.hardwareConcurrency || 4);
+  const memory = Number(navigator.deviceMemory || 4);
+  if (cores <= 4 || memory <= 4) return 42000;
+  if (cores <= 8 || memory <= 8) return 60000;
+  return DEFAULT_PARTICLE_COUNT;
+}
 
 const vertexShader = `
 uniform float uTime;
@@ -151,12 +159,12 @@ function stateSettings(state, level) {
   return { mode: 0, intensity: 0.18, speed: 0.58, size: 45 };
 }
 
-function fillInitialVortex(positions, colors, randomOffsets) {
+function fillInitialVortex(positions, colors, randomOffsets, particleCount) {
   const green = new THREE.Color(0x61ffe2);
   const white = new THREE.Color(0xf5f1d8);
   const gold = new THREE.Color(0xf0b75a);
 
-  for (let i = 0; i < PARTICLE_COUNT; i += 1) {
+  for (let i = 0; i < particleCount; i += 1) {
     const i3 = i * 3;
     const t = (Math.random() - 0.5) * 5.0;
     const angle = Math.random() * Math.PI * 2;
@@ -177,7 +185,7 @@ function fillInitialVortex(positions, colors, randomOffsets) {
   }
 }
 
-function processImageIntoTargets(imageUrl, sceneData) {
+function processImageIntoTargets(imageUrl, sceneData, particleCount) {
   const img = new Image();
   img.onload = () => {
     const canvas = document.createElement("canvas");
@@ -220,7 +228,7 @@ function processImageIntoTargets(imageUrl, sceneData) {
 
     validPoints.sort((a, b) => b.brightness - a.brightness);
     const { geometry, targetPositions, targetColors } = sceneData;
-    for (let i = 0; i < PARTICLE_COUNT; i += 1) {
+    for (let i = 0; i < particleCount; i += 1) {
       const i3 = i * 3;
       const point = validPoints[(i * 17 + Math.floor(Math.random() * validPoints.length)) % validPoints.length];
       targetPositions[i3] = point.pos[0] + (Math.random() - 0.5) * 0.55;
@@ -249,6 +257,11 @@ export default function JarvisParticleVortex({ state = "idle", audioLevel = 0, c
     let renderer;
     let sceneData;
     let disposed = false;
+    let visible = true;
+    let running = false;
+    let contextLost = false;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const particleCount = reducedMotion ? 32000 : particleBudget();
 
     try {
       const scene = new THREE.Scene();
@@ -257,15 +270,16 @@ export default function JarvisParticleVortex({ state = "idle", audioLevel = 0, c
 
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
       renderer.setClearColor(0x000000, 0);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
+      const lowPower = particleCount < DEFAULT_PARTICLE_COUNT;
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, lowPower ? 1.15 : 1.5));
       container.appendChild(renderer.domElement);
 
-      const positions = new Float32Array(PARTICLE_COUNT * 3);
-      const targetPositions = new Float32Array(PARTICLE_COUNT * 3);
-      const colors = new Float32Array(PARTICLE_COUNT * 3);
-      const targetColors = new Float32Array(PARTICLE_COUNT * 3);
-      const randomOffsets = new Float32Array(PARTICLE_COUNT * 3);
-      fillInitialVortex(positions, colors, randomOffsets);
+      const positions = new Float32Array(particleCount * 3);
+      const targetPositions = new Float32Array(particleCount * 3);
+      const colors = new Float32Array(particleCount * 3);
+      const targetColors = new Float32Array(particleCount * 3);
+      const randomOffsets = new Float32Array(particleCount * 3);
+      fillInitialVortex(positions, colors, randomOffsets, particleCount);
       targetPositions.set(positions);
       targetColors.set(colors);
 
@@ -297,7 +311,7 @@ export default function JarvisParticleVortex({ state = "idle", audioLevel = 0, c
       const points = new THREE.Points(geometry, material);
       scene.add(points);
       sceneData = { scene, camera, renderer, points, material, geometry, targetPositions, targetColors };
-      processImageIntoTargets(PARTICLE_SOURCE, sceneData);
+      processImageIntoTargets(PARTICLE_SOURCE, sceneData, particleCount);
 
       let time = 0;
       let morph = 0;
@@ -319,8 +333,8 @@ export default function JarvisParticleVortex({ state = "idle", audioLevel = 0, c
       resize();
 
       const animate = () => {
-        frameRef.current = window.requestAnimationFrame(animate);
-        if (disposed || document.hidden) return;
+        if (disposed || document.hidden || !visible) { running = false; return; }
+        running = true;
 
         const live = stateRef.current;
         const settings = stateSettings(live.state, live.audioLevel);
@@ -347,12 +361,34 @@ export default function JarvisParticleVortex({ state = "idle", audioLevel = 0, c
         material.uniforms.uPointSize.value = pointSize;
 
         renderer.render(scene, camera);
+        if (!reducedMotion) frameRef.current = window.requestAnimationFrame(animate);
+        else running = false;
       };
-      animate();
+      const resume = () => {
+        if (!disposed && !contextLost && !document.hidden && visible && !running) frameRef.current = window.requestAnimationFrame(animate);
+      };
+      const onVisibilityChange = () => resume();
+      const intersectionObserver = new IntersectionObserver(([entry]) => {
+        visible = Boolean(entry?.isIntersecting);
+        resume();
+      });
+      const onContextLost = (event) => {
+        event.preventDefault();
+        contextLost = true;
+        running = false;
+        container.classList.add("webgl-unavailable");
+      };
+      renderer.domElement.addEventListener("webglcontextlost", onContextLost);
+      document.addEventListener("visibilitychange", onVisibilityChange);
+      intersectionObserver.observe(container);
+      resume();
 
       return () => {
         disposed = true;
         window.cancelAnimationFrame(frameRef.current);
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+        intersectionObserver.disconnect();
+        renderer.domElement.removeEventListener("webglcontextlost", onContextLost);
         resizeObserver.disconnect();
         geometry.dispose();
         material.dispose();

@@ -1032,10 +1032,10 @@ function HudTerminal({ messages, sending, lastError, turnState, voiceRecovery, o
   }, []);
 
   return (
-    <aside className="hud-terminal" aria-label="对话记录">
+    <aside className="hud-terminal" aria-label="对话记录" aria-busy={sending}>
       <div className="terminal-cap">
         <div><span>对话历史</span><small>CONVERSATION HISTORY</small></div>
-        <div className={cls("turn-owner", turnState.tone)} aria-live="polite">
+        <div id="turn-status" className={cls("turn-owner", turnState.tone)} aria-live="polite">
           {sending ? <Loader2 className="spin" size={13} /> : <Radio size={13} />}
           <span>{turnState.label}</span>
         </div>
@@ -3033,6 +3033,7 @@ function App() {
 
         <form
           className={cls("command-dock", textInputOpen && "text-open", textInputExpanded && "multiline", sending && "turn-active")}
+          aria-label="Jarvis 指令输入"
           onSubmit={(event) => {
             event.preventDefault();
             sendMessage();
@@ -3065,6 +3066,7 @@ function App() {
             <textarea
               ref={inputRef}
               aria-label="给 Jarvis 的指令"
+              aria-describedby="turn-status"
               value={draft}
               onChange={(event) => {
                 setDraft(event.target.value);

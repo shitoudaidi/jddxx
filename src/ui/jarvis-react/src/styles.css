@@ -66,8 +66,24 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid rgba(112, 225, 255, 0.58);
+  outline: 2px solid rgba(151, 237, 255, 0.88);
   outline-offset: 2px;
+}
+
+.entity-vortex.webgl-unavailable { display: none; }
+
+@media (pointer: coarse) {
+  .news-icon,
+  .message-actions button,
+  .recovery-dismiss { min-width: 40px; min-height: 40px; }
+}
+
+@media (forced-colors: active) {
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible { outline: 3px solid Highlight; }
+  .primary, .secondary, .voice-command { forced-color-adjust: auto; }
 }
 
 .app-shell {
