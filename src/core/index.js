@@ -1,4 +1,4 @@
-import { config, getMinimaxKey as _getMinimaxKey, getSecurity } from './config.js'
+import { config, getMinimaxKey as _getMinimaxKey, getSecurity, getVoiceConfig } from './config.js'
 import { callLLM } from './llm.js'
 import { buildSystemPrompt, buildContextBlock, combinePromptForPreview } from './prompt.js'
 import { enqueueTurnForRecognition, configureRecognizerScheduler } from './memory/recognizer-scheduler.js'
@@ -1973,6 +1973,9 @@ async function main() {
       return { cancelled: queued || running, state: running ? 'running' : queued ? 'queued' : 'settled' }
     },
   })
+  if (getVoiceConfig()?.voiceProvider !== 'aliyun') {
+    startVoiceServer()
+  }
   refreshStartupEnvironment().catch(err => console.warn('[startup] background environment refresh crashed:', err?.message || err))
   startSocialConnectors({ pushMessage, emitEvent }).catch(err => console.warn('[social] startup failed:', err.message))
 

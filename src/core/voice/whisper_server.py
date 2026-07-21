@@ -37,10 +37,10 @@ SAMPLE_RATE = 16000
 # ── VAD 阈值 ──
 # 笔记本风扇 / 空调等环境噪音 RMS 通常在 0.002~0.006；
 # 正常说话峰值 RMS 在 0.02~0.1，因此阈值设在两者之间。
-SILENCE_RMS_THRESHOLD     = 0.005   # 低于此 = 静默（原 0.003）
-NEAR_SPEECH_RMS_THRESHOLD = 0.010   # 超过此才计入有声 chunk（原 0.004）
-MIN_UTTERANCE_PEAK_RMS    = 0.015   # 整段utterance 的峰值必须达到此值才送转录（原 0.004）
-MIN_UTTERANCE_VOICED_CHUNKS = 2     # 至少需要 2 个有声 chunk（原 1）
+SILENCE_RMS_THRESHOLD     = 0.003
+NEAR_SPEECH_RMS_THRESHOLD = 0.006
+MIN_UTTERANCE_PEAK_RMS    = 0.008
+MIN_UTTERANCE_VOICED_CHUNKS = 1
 
 # ── Whisper 幻觉输出过滤 ──
 _HALLUCINATION_FRAGMENTS = [

@@ -139,7 +139,7 @@ async function run() {
       try { msg = JSON.parse(raw.toString()); } catch { return; }
       if (msg.type === "diag") {
         diags.push({ event: msg.event || "", info: msg.info || null });
-        if (msg.event === "cloud-asr-armed" || msg.event === "task-started" || msg.event === "local-asr-selected") sendAudio();
+        if (msg.event === "cloud-asr-armed" || msg.event === "task-started" || msg.event === "local-asr-ready") sendAudio();
       } else if (msg.type === "transcript") {
         if (String(msg.text || "").trim()) {
           transcripts.push({ text: msg.text, final: !!msg.is_final, seg: msg.seg || null });

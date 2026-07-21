@@ -54,8 +54,8 @@ const MAX_ASR_CONNECTIONS = 4
 const MAX_ACUI_CONNECTIONS = 8
 const ASR_PREROLL_MAX_CHUNKS = 12
 const ASR_WAKE_PREROLL_MAX_CHUNKS = 48
-const ASR_SPEECH_RMS_THRESHOLD = 240
-const ASR_WAKE_RMS_THRESHOLD = 48
+const ASR_SPEECH_RMS_THRESHOLD = 128
+const ASR_WAKE_RMS_THRESHOLD = 32
 const requestRateWindows = new Map()
 
 function pcmRms(buffer) {

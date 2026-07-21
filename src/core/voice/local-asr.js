@@ -33,6 +33,7 @@ export function createLocalASRSession(config, onTranscript, onError, onClose, on
   let closed = false
   let ws = null
   let retryTimer = null
+  let pendingFlush = false
   let attempts = 0
   const startedAt = Date.now()
 
@@ -70,6 +71,10 @@ export function createLocalASRSession(config, onTranscript, onError, onClose, on
       }))
       while (pending.length && ws.readyState === WebSocket.OPEN) {
         ws.send(pending.shift())
+      }
+      if (pendingFlush && ws.readyState === WebSocket.OPEN) {
+        pendingFlush = false
+        ws.send(JSON.stringify({ type: 'flush' }))
       }
     })
 
@@ -112,11 +117,13 @@ export function createLocalASRSession(config, onTranscript, onError, onClose, on
     },
     flush() {
       if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'flush' }))
+      else pendingFlush = true
     },
     close() {
       closed = true
       clearRetry()
       pending.length = 0
+      pendingFlush = false
       try { ws?.close() } catch {}
     },
   }

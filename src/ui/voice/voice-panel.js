@@ -50,7 +50,7 @@ export function initVoicePanel({
     if (!diag.chunks || !diag.bytes) {
       return '没有采集到麦克风音频。请检查系统输入设备、麦克风权限，或重新选择默认麦克风。';
     }
-    if ((diag.peakVol || 0) < 0.006) {
+    if ((diag.peakVol || 0) < 0.003) {
       return `麦克风输入过低或接近静音。当前峰值 ${diag.peakVol || 0}，请检查输入音量或换一个麦克风。`;
     }
     if (!diag.transcripts) {

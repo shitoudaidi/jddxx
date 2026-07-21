@@ -867,6 +867,21 @@ export function createVoiceCore({ canvas, transcript, getChatInput, getSendMessa
     micData = { analyser, dataArray, stream, actx, src };
     try {
       const track = stream.getAudioTracks?.()[0];
+      track?.addEventListener('ended', () => {
+        if (micData?.stream !== stream || !micActive || !userWantedMic) return;
+        diagLastError = 'Microphone track ended unexpectedly';
+        diag('mic-track-ended', track?.label || 'default input');
+        setStatus('error');
+        window.setTimeout(async () => {
+          if (micData?.stream !== stream || !micActive || !userWantedMic) return;
+          stopCloudStream();
+          stopMic();
+          const replacement = await startMic();
+          if (replacement && micActive && userWantedMic) await startCloudStream(replacement, sessionGeneration);
+        }, 500);
+      }, { once: true });
+      track?.addEventListener('mute', () => diag('mic-track-muted', track?.label || 'default input'));
+      track?.addEventListener('unmute', () => diag('mic-track-unmuted', track?.label || 'default input'));
       diag('mic-track', {
         label: track?.label || '',
         settings: track?.getSettings?.() || {},
@@ -906,11 +921,12 @@ export function createVoiceCore({ canvas, transcript, getChatInput, getSendMessa
   }
 
   function stopMic() {
-    micData?.stream.getTracks().forEach(t => t.stop());
+    const previous = micData;
+    micData = null;
+    previous?.stream.getTracks().forEach(t => t.stop());
     // 关闭分析用的 AudioContext，否则反复开关/媒体挂起会累积 AudioContext，
     // 触顶浏览器约 6 个的硬上限后麦克风彻底失灵。
-    try { micData?.actx?.close(); } catch {}
-    micData = null;
+    try { previous?.actx?.close(); } catch {}
   }
 
   // ─── Cloud ASR 传输（后端代理） ───
