@@ -1092,9 +1092,11 @@ function HudTerminal({ messages, sending, lastError, turnState, voiceRecovery, o
           <div id="turn-status" className={cls("turn-owner", turnState.tone)} aria-live="polite">
             {sending ? <Loader2 className="spin" size={13} /> : <Radio size={13} />}
             <span>{turnState.label}</span>
+            {turnState.elapsed ? <time aria-hidden="true">{turnState.elapsed}s</time> : null}
           </div>
         </div>
       </div>
+      {sending ? <div className="turn-progress" role="progressbar" aria-label={turnState.label} aria-valuemin="0" aria-valuemax="95" aria-valuenow={Math.min(95, turnState.elapsed || 0)} title={`${turnState.label} · ${turnState.elapsed || 0} 秒`}><i style={{ width: `${Math.min(100, ((turnState.elapsed || 0) / 95) * 100)}%` }} /></div> : null}
       {searchOpen ? (
         <div className="history-search">
           <Search size={13} aria-hidden="true" />
@@ -3038,7 +3040,18 @@ function App() {
   }, [messages]);
 
   const turnState = useMemo(() => {
-    if (sending || visualState === "thinking") return { label: `贾维斯思考中${turnElapsedSeconds ? ` ${turnElapsedSeconds}s` : ""}`, tone: "thinking" };
+    if (sending || visualState === "thinking") {
+      const label = turnElapsedSeconds < 5
+        ? "正在理解指令"
+        : turnElapsedSeconds < 15
+          ? "正在思考"
+          : turnElapsedSeconds < 40
+            ? "正在处理任务"
+            : turnElapsedSeconds < 70
+              ? "复杂任务仍在执行"
+              : "正在等待核心完成";
+      return { label, tone: "thinking", elapsed: turnElapsedSeconds };
+    }
     if (visualState === "speaking") return { label: "贾维斯正在说", tone: "speaking" };
     if (voiceActive || visualState === "listening") return { label: "请说，我在听", tone: "listening" };
     return { label: "语音待命", tone: "ready" };

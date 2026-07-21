@@ -4423,3 +4423,21 @@ aside.acui-result-layer[data-connected="true"] ~ .news-ticker {
 }
 
 .history-search > span { color: #71858d; font: 9px/1 var(--font-mono); white-space: nowrap; }
+.turn-owner time {
+  color: #70838b;
+  font: 9px/1 var(--font-mono);
+}
+
+.turn-progress {
+  height: 2px;
+  margin: 0 8px;
+  overflow: hidden;
+  background: rgba(91, 126, 138, 0.14);
+}
+
+.turn-progress i {
+  display: block;
+  height: 100%;
+  background: #6cc7d5;
+  transition: width 400ms linear;
+}
