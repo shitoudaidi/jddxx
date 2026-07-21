@@ -1152,7 +1152,7 @@ async function runLayoutProbe() {
 
       window.__jarvisUiProbe?.beginThinkingFixture?.();
       await new Promise((resolve) => setTimeout(resolve, 1150));
-      const elapsedVisible = /思考中\\s+\\d+s/.test(document.querySelector(".turn-owner")?.textContent || "");
+      const elapsedVisible = /^\\d+s$/.test(document.querySelector(".turn-owner time")?.textContent?.trim() || "");
       const cancelButton = document.querySelector(".command-dock .send.cancel");
       const cancelButtonVisible = Boolean(cancelButton && getComputedStyle(cancelButton).display !== "none" && cancelButton.getAttribute("aria-label") === "停止生成");
 
