@@ -8,7 +8,7 @@ const checks = {
   completeProductIdentity: /<h1>GDDXX-JARVIS<\/h1>/.test(ui),
   headerMusicDuplicateRemoved: !/header-actions[\s\S]{0,500}toggleAmbientMusic/.test(ui),
   headerSettingsDuplicateRemoved: !/header-actions[\s\S]{0,700}setDrawerOpen/.test(ui),
-  refreshHasPointerHint: /aria-label="刷新状态" title="刷新状态"/.test(ui),
+  refreshHasPointerHint: /aria-label=\{refreshing \? "正在刷新状态" : "刷新状态"\} title=\{refreshing \? "正在刷新状态" : "刷新状态"\}/.test(ui),
   warningStateIsAmber: /status-pill\.warn\s*\{[\s\S]{0,80}#e3b86c/.test(css),
   loadingStateIsDistinct: /pending \? "pending"/.test(ui) && /status-pill\.pending/.test(css),
   statusIsAnnounced: /role="status" aria-live="polite" aria-busy=/.test(ui),
