@@ -3894,6 +3894,24 @@ aside.acui-result-layer[data-connected="true"] ~ .news-ticker {
   to { background: #243c46; }
 }
 
+.app-shell.mode-active .terminal-empty button {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid #294550;
+  border-radius: 4px;
+  background: #081216;
+  color: #b9dce4;
+  cursor: pointer;
+}
+
+.app-shell.mode-active .message-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
 @media (max-width: 900px) {
   .app-shell.mode-active {
     --left-rail: 230px;

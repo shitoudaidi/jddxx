@@ -301,6 +301,16 @@ function formatTime(timestamp) {
   return date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
 }
 
+function formatDateTimeAttribute(timestamp) {
+  const date = new Date(timestamp);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
+
+function formatFullTime(timestamp) {
+  const date = new Date(timestamp);
+  return Number.isNaN(date.getTime()) ? undefined : date.toLocaleString("zh-CN");
+}
+
 function stateLabel(state) {
   if (state === "thinking") return "思考";
   if (state === "listening") return "聆听";
@@ -1053,9 +1063,12 @@ function HudTerminal({ messages, sending, lastError, turnState, voiceRecovery, o
   const [followLatest, setFollowLatest] = useState(true);
   const [expandedMessages, setExpandedMessages] = useState(() => new Set());
   const [copiedId, setCopiedId] = useState(null);
+  const [copyErrorId, setCopyErrorId] = useState(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [historyQuery, setHistoryQuery] = useState("");
   const searchRef = useRef(null);
+  const copyTimerRef = useRef(0);
+  const reduceMotion = useReducedMotion();
   const normalizedQuery = historyQuery.trim().toLocaleLowerCase();
   const matchingMessages = normalizedQuery
     ? messages.filter((message) => `${cleanText(message.content)} ${message.channel || ""}`.toLocaleLowerCase().includes(normalizedQuery))
@@ -1074,8 +1087,8 @@ function HudTerminal({ messages, sending, lastError, turnState, voiceRecovery, o
 
   const jumpToLatest = useCallback(() => {
     setFollowLatest(true);
-    window.requestAnimationFrame(() => terminalRef.current?.scrollTo({ top: terminalRef.current.scrollHeight, behavior: "smooth" }));
-  }, []);
+    window.requestAnimationFrame(() => terminalRef.current?.scrollTo({ top: terminalRef.current.scrollHeight, behavior: reduceMotion ? "auto" : "smooth" }));
+  }, [reduceMotion]);
 
   const toggleHistorySearch = useCallback(() => {
     setSearchOpen((current) => {
@@ -1086,10 +1099,24 @@ function HudTerminal({ messages, sending, lastError, turnState, voiceRecovery, o
     });
   }, []);
 
+  useEffect(() => () => window.clearTimeout(copyTimerRef.current), []);
+
   const copyMessage = useCallback(async (message) => {
-    await navigator.clipboard.writeText(cleanText(message.content));
-    setCopiedId(message.id);
-    window.setTimeout(() => setCopiedId((current) => current === message.id ? null : current), 1400);
+    try {
+      const text = cleanText(message.content);
+      if (!navigator.clipboard?.writeText) throw new Error("clipboard unavailable");
+      await navigator.clipboard.writeText(text);
+      setCopyErrorId(null);
+      setCopiedId(message.id);
+    } catch {
+      setCopiedId(null);
+      setCopyErrorId(message.id);
+    }
+    window.clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = window.setTimeout(() => {
+      setCopiedId(null);
+      setCopyErrorId(null);
+    }, 1800);
   }, []);
 
   return (
@@ -1132,18 +1159,18 @@ function HudTerminal({ messages, sending, lastError, turnState, voiceRecovery, o
           </button>
         ) : null}
         {visibleMessages.length === 0 && normalizedQuery ? (
-          <div className="terminal-empty search-empty"><Search size={18} aria-hidden="true" /><strong>没有匹配的对话</strong><span>换一个关键词，或清空搜索</span></div>
+          <div className="terminal-empty search-empty"><Search size={18} aria-hidden="true" /><strong>没有匹配的对话</strong><button type="button" onClick={() => { setHistoryQuery(""); searchRef.current?.focus(); }}>清空搜索</button></div>
         ) : visibleMessages.length === 0 ? (
           <div className="terminal-empty">
             <Radio size={18} aria-hidden="true" />
             <strong>等待您的指令</strong>
-            <span>点击麦克风，或按住空格说话</span>
+            <button type="button" onClick={onUseKeyboard}><Keyboard size={13} />键盘输入</button>
           </div>
         ) : visibleMessages.map((message) => (
           <div key={message.id} className={cls("terminal-line", message.role, message.id === "live" && "live", cleanText(message.content).length > 260 && "long", expandedMessages.has(message.id) && "expanded")}>
             <div className="terminal-line-head">
               <span>{message.role === "user" ? "您 / YOU" : message.role === "jarvis" ? "贾维斯 / JARVIS" : "系统 / SYSTEM"}</span>
-              {message.timestamp ? <time>{formatTime(message.timestamp)}</time> : null}
+              {formatTime(message.timestamp) ? <time dateTime={formatDateTimeAttribute(message.timestamp)} title={formatFullTime(message.timestamp)}>{formatTime(message.timestamp)}</time> : null}
             </div>
             {message.channel ? <small className="message-channel">{message.channel}</small> : null}
             <div className="message-body">
@@ -1151,15 +1178,15 @@ function HudTerminal({ messages, sending, lastError, turnState, voiceRecovery, o
                 ? <BilingualMessageText content={message.content} compact />
                 : <p>{message.content}</p>}
             </div>
-            {message.role === "jarvis" && message.content ? (
+            {message.role === "jarvis" && message.content && message.id !== "live" ? (
               <div className="message-actions">
                 {cleanText(message.content).length > 260 ? <button type="button" onClick={() => setExpandedMessages((current) => {
                   const next = new Set(current);
                   if (next.has(message.id)) next.delete(message.id); else next.add(message.id);
                   return next;
                 })}>{expandedMessages.has(message.id) ? <ChevronUp size={13} /> : <ChevronDown size={13} />}{expandedMessages.has(message.id) ? "收起" : "展开"}</button> : null}
-                <button type="button" onClick={() => copyMessage(message)}><Copy size={13} />{copiedId === message.id ? "已复制" : "复制"}</button>
-                <button type="button" onClick={() => onReplayMessage(message.content)}><Volume2 size={13} />重播</button>
+                <button type="button" onClick={() => copyMessage(message)} aria-live="polite" title="复制这条回复"><Copy size={13} />{copiedId === message.id ? "已复制" : copyErrorId === message.id ? "复制失败" : "复制"}</button>
+                <button type="button" disabled={sending} onClick={() => onReplayMessage(message.content)} title={sending ? "当前回复完成后可重播" : "重播这条回复"}><Volume2 size={13} />重播</button>
               </div>
             ) : null}
           </div>
@@ -1167,13 +1194,13 @@ function HudTerminal({ messages, sending, lastError, turnState, voiceRecovery, o
         {lastError ? (
           <div className="terminal-line system voice-recovery" role="alert" aria-live="assertive">
             <div className="terminal-line-head">
-              <span>{voiceRecovery?.kind === "device" ? "MICROPHONE" : "VOICE RECOVERY"}</span>
+              <span>{voiceRecovery?.kind === "device" ? "MICROPHONE" : voiceRecovery ? "VOICE RECOVERY" : "SYSTEM"}</span>
               <button type="button" className="recovery-dismiss" onClick={onDismissError} aria-label="关闭语音错误" title="关闭"><X size={13} /></button>
             </div>
             <p>{lastError}</p>
             {voiceRecovery?.detail ? <small>{voiceRecovery.detail}</small> : null}
             <div className="recovery-actions">
-              {voiceRecovery?.kind !== "device" ? <button type="button" onClick={onRetryVoice}><Mic size={13} />重试</button> : null}
+              {voiceRecovery && voiceRecovery.kind !== "device" ? <button type="button" onClick={onRetryVoice}><Mic size={13} />重试语音</button> : null}
               <button type="button" onClick={onUseKeyboard}><Keyboard size={13} />键盘输入</button>
             </div>
           </div>
