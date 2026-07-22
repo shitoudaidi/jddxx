@@ -1015,6 +1015,42 @@ async function runLayoutProbe() {
   mainWindow.setSize(1380, 880, false);
   mainWindow.center();
   await new Promise((resolve) => setTimeout(resolve, 250));
+  const settings = await mainWindow.webContents.executeJavaScript(`
+    (async () => {
+      const waitFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const opener = [...document.querySelectorAll(".module-link")].find((item) => item.textContent.includes("控制台"));
+      opener?.focus();
+      opener?.click();
+      await waitFrame();
+      const drawer = document.querySelector(".drawer");
+      const backdrop = document.querySelector(".drawer-backdrop");
+      const drawerRect = drawer?.getBoundingClientRect();
+      const controlsInside = Boolean(drawerRect && [...drawer.querySelectorAll("input, select, button")].every((control) => {
+        const rect = control.getBoundingClientRect();
+        return rect.left >= drawerRect.left - 1 && rect.right <= drawerRect.right + 1;
+      }) && drawer.scrollHeight >= drawer.clientHeight);
+      const backdropRect = backdrop?.getBoundingClientRect();
+      const backdropCoversViewport = Boolean(backdropRect && backdropRect.left === 0 && backdropRect.top === 0 && backdropRect.right >= innerWidth && backdropRect.bottom >= innerHeight);
+      const closeFocused = document.activeElement === drawer?.querySelector('[aria-label="关闭设置"]');
+      const providerIsSelect = drawer?.querySelector('.field select')?.value === "deepseek";
+      return { ready: Boolean(drawer), controlsInside, backdropCoversViewport, closeFocused, providerIsSelect };
+    })();
+  `, true);
+  await new Promise((resolve) => setTimeout(resolve, 220));
+  const settingsImage = await mainWindow.webContents.capturePage();
+  const settingsScreenshot = path.join(outputDir, "jarvis-layout-settings.png");
+  fs.writeFileSync(settingsScreenshot, settingsImage.toPNG());
+  const settingsCloseResult = await mainWindow.webContents.executeJavaScript(`
+    (async () => {
+      document.querySelector('.drawer [aria-label="关闭设置"]')?.click();
+      for (let attempt = 0; attempt < 20 && document.querySelector(".drawer"); attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      return { drawerGone: !document.querySelector(".drawer"), focusRestored: document.activeElement?.classList.contains("module-link") || false };
+    })();
+  `, true);
+  snapshots.push({ id: "settings", requested: { width: 1380, height: 880 }, screenshot: settingsScreenshot, ok: Boolean(settings.ready && settings.controlsInside && settings.backdropCoversViewport && settings.closeFocused && settings.providerIsSelect && settingsCloseResult.drawerGone && settingsCloseResult.focusRestored), ...settings, ...settingsCloseResult });
+
   const firstRun = await mainWindow.webContents.executeJavaScript(`
     (async () => {
       window.__jarvisUiProbe?.showFirstRunFixture?.();
@@ -1043,6 +1079,7 @@ async function runLayoutProbe() {
       const waitFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const dock = document.querySelector(".command-dock");
       const input = dock?.querySelector("textarea");
+      document.activeElement?.blur?.();
       window.jarvisVoice?.stop?.();
       document.querySelector(".voice-recovery .recovery-dismiss")?.click();
       await waitFrame();

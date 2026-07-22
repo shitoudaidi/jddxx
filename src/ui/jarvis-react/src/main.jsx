@@ -311,6 +311,10 @@ function formatFullTime(timestamp) {
   return Number.isNaN(date.getTime()) ? undefined : date.toLocaleString("zh-CN");
 }
 
+function boundedFeedback(value, fallback) {
+  return String(value || fallback).replace(/\s+/g, " ").trim().slice(0, 180);
+}
+
 function stateLabel(state) {
   if (state === "thinking") return "思考";
   if (state === "listening") return "聆听";
@@ -1226,6 +1230,7 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
   const [aiHotFeedback, setAiHotFeedback] = useState({ text: "", type: "" });
   const drawerRef = useRef(null);
   const closeButtonRef = useRef(null);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (!activation) return;
@@ -1236,14 +1241,18 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
 
   useEffect(() => {
     if (!open) return undefined;
-    fetch(`${api}/settings/ai-hot`)
-      .then(readJson)
+    fetch(`${api}/settings/ai-hot`, { signal: AbortSignal.timeout(API_TIMEOUT_MS) })
+      .then(async (response) => {
+        const data = await readJson(response);
+        if (!response.ok || data.ok === false) throw new Error(data.error || "无法读取 AI HOT 配置");
+        return data;
+      })
       .then((data) => {
         if (!data?.aiHot) return;
         setAiHotEndpoint(data.aiHot.endpoint || "https://aihot.virxact.com/api/public/items");
         setAiHotKeyConfigured(Boolean(data.aiHot.apiKeyConfigured));
       })
-      .catch(() => setAiHotFeedback({ text: "无法读取 AI HOT 配置", type: "error" }));
+      .catch((error) => setAiHotFeedback({ text: boundedFeedback(error.message, "无法读取 AI HOT 配置"), type: "error" }));
     const previousFocus = document.activeElement;
     const onKeyDown = (event) => {
       if (event.key === "Escape") {
@@ -1314,7 +1323,7 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
       setFeedback({ text: "模型配置已保存", type: "success" });
       await refreshAll();
     } catch (error) {
-      setFeedback({ text: error.message || "保存失败", type: "error" });
+      setFeedback({ text: boundedFeedback(error.message, "保存失败"), type: "error" });
     } finally {
       setSaving(false);
     }
@@ -1323,13 +1332,21 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
   const caps = readiness?.capabilities || {};
 
   const saveAiHot = async () => {
+    try {
+      const parsed = new URL(aiHotEndpoint.trim());
+      if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error();
+    } catch {
+      setAiHotFeedback({ text: "资讯接口必须是有效的 HTTP 或 HTTPS 地址", type: "error" });
+      return;
+    }
     setAiHotSaving(true);
     setAiHotFeedback({ text: "", type: "" });
     try {
       const response = await fetch(`${api}/settings/ai-hot`, {
         method: "POST",
         headers: { "Content-Type": "application/json; charset=utf-8" },
-        body: JSON.stringify({ endpoint: aiHotEndpoint.trim(), ...(aiHotApiKey ? { apiKey: aiHotApiKey.trim() } : {}) })
+        body: JSON.stringify({ endpoint: aiHotEndpoint.trim(), ...(aiHotApiKey ? { apiKey: aiHotApiKey.trim() } : {}) }),
+        signal: AbortSignal.timeout(API_TIMEOUT_MS)
       });
       const data = await readJson(response);
       if (!response.ok || data.ok === false) throw new Error(data.error || "保存失败");
@@ -1337,20 +1354,22 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
       setAiHotKeyConfigured(Boolean(data.aiHot?.apiKeyConfigured));
       setAiHotFeedback({ text: "AI HOT 资讯源已保存", type: "success" });
     } catch (error) {
-      setAiHotFeedback({ text: error.message || "保存失败", type: "error" });
+      setAiHotFeedback({ text: boundedFeedback(error.message, "保存失败"), type: "error" });
     } finally {
       setAiHotSaving(false);
     }
   };
 
   const clearAiHotKey = async () => {
+    if (!window.confirm("清除 AI HOT 密钥并改用公开接口？")) return;
     setAiHotSaving(true);
     setAiHotFeedback({ text: "", type: "" });
     try {
       const response = await fetch(`${api}/settings/ai-hot`, {
         method: "POST",
         headers: { "Content-Type": "application/json; charset=utf-8" },
-        body: JSON.stringify({ endpoint: aiHotEndpoint.trim(), apiKey: "" })
+        body: JSON.stringify({ endpoint: aiHotEndpoint.trim(), apiKey: "" }),
+        signal: AbortSignal.timeout(API_TIMEOUT_MS)
       });
       const data = await readJson(response);
       if (!response.ok || data.ok === false) throw new Error(data.error || "清除失败");
@@ -1358,7 +1377,7 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
       setAiHotKeyConfigured(false);
       setAiHotFeedback({ text: "AI HOT 密钥已清除，当前使用公开接口", type: "success" });
     } catch (error) {
-      setAiHotFeedback({ text: error.message || "清除失败", type: "error" });
+      setAiHotFeedback({ text: boundedFeedback(error.message, "清除失败"), type: "error" });
     } finally {
       setAiHotSaving(false);
     }
@@ -1367,32 +1386,37 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
   return (
     <AnimatePresence>
       {open ? (
+        <motion.div className="drawer-backdrop" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }} initial={false}>
         <motion.aside
           ref={drawerRef}
           className="drawer"
           role="dialog"
           aria-modal="true"
           aria-labelledby="settings-drawer-title"
-          initial={{ opacity: 0, x: 28 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 28 }}
-          transition={{ duration: 0.18, ease: [0.2, 0, 0, 1] }}
+          initial={reduceMotion ? false : { x: 28 }}
+          animate={{ x: 0 }}
+          exit={{ x: 28 }}
+          transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.2, 0, 0, 1] }}
         >
           <div className="drawer-head">
             <div>
               <span>Settings</span>
               <strong id="settings-drawer-title">模型与能力</strong>
             </div>
-            <button ref={closeButtonRef} className="icon-btn" type="button" onClick={onClose} aria-label="关闭设置">
+            <button ref={closeButtonRef} className="icon-btn" type="button" onClick={onClose} aria-label="关闭设置" title="关闭设置">
               <X size={18} />
             </button>
           </div>
 
-          <div className="drawer-section">
+          <form className="drawer-section" onSubmit={(event) => { event.preventDefault(); saveModel(); }}>
             <StatusPill ok={!!activation?.activated} label="DeepSeek" detail={activation?.activated ? activation.model || activation.provider : "未激活"} />
             <label className="field">
               <span>Provider</span>
-              <input value={provider} onChange={(event) => setProvider(event.target.value)} />
+              <select value={provider} onChange={(event) => setProvider(event.target.value)}>
+                <option value="deepseek">DeepSeek</option>
+                <option value="custom">兼容 OpenAI 的自定义服务</option>
+                {!['deepseek', 'custom'].includes(provider) ? <option value={provider}>{provider}</option> : null}
+              </select>
             </label>
             <label className="field">
               <span>Model</span>
@@ -1422,7 +1446,7 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
               <span>Base URL</span>
               <input type="url" value={baseURL} onChange={(event) => setBaseURL(event.target.value)} placeholder="默认可留空" />
             </label>
-            <button className="primary wide" disabled={saving || !provider.trim() || !model.trim()} aria-busy={saving} onClick={saveModel} type="button">
+            <button className="primary wide" disabled={saving || !provider.trim() || !model.trim()} aria-busy={saving} type="submit">
               {saving ? <Loader2 className="spin" size={16} /> : <KeyRound size={16} />}
               保存模型配置
             </button>
@@ -1431,7 +1455,7 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
                 {feedback.text}
               </p>
             ) : null}
-          </div>
+          </form>
 
           <div className="drawer-section grid">
             <StatusPill compact ok={!!caps.asr?.ready} label="ASR" detail={caps.asr?.provider || "未配置"} />
@@ -1466,7 +1490,7 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
               <button className="secondary wide" disabled={aiHotSaving} onClick={clearAiHotKey} type="button">清除已配置密钥</button>
             ) : null}
             {aiHotFeedback.text ? (
-              <p className={cls("feedback", aiHotFeedback.type === "error" && "error")} role={aiHotFeedback.type === "error" ? "alert" : "status"}>
+              <p className={cls("feedback", aiHotFeedback.type === "error" && "error")} role={aiHotFeedback.type === "error" ? "alert" : "status"} aria-live="polite">
                 {aiHotFeedback.text}
               </p>
             ) : null}
@@ -1476,6 +1500,7 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
             {LINKS.map((item) => <ModuleLink key={item.path || item.action} item={item} api={api} onSettings={onClose} />)}
           </div>
         </motion.aside>
+        </motion.div>
       ) : null}
     </AnimatePresence>
   );

@@ -16,7 +16,7 @@
   --font-ui: "Bahnschrift", "Microsoft YaHei UI", "Segoe UI", system-ui, sans-serif;
   --font-mono: "Cascadia Mono", "SF Mono", "JetBrains Mono", Consolas, ui-monospace, monospace;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --z-drawer: 8;
+  --z-drawer: 30;
 }
 
 * {
@@ -2461,6 +2461,17 @@ aside.acui-result-layer[data-connected="true"] ~ .news-ticker {
   border-radius: 14px;
   background: rgba(7, 11, 16, 0.96);
   color: var(--ink);
+}
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-drawer);
+  background: rgba(0, 4, 6, 0.58);
+}
+
+.drawer-backdrop .drawer {
+  z-index: 1;
 }
 
 .drawer-head,
