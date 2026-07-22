@@ -949,6 +949,21 @@ function FirstRunSetup({ api, onComplete }) {
   const apiKeyRef = useRef(null);
   const baseURLRef = useRef(null);
   const aliyunKeyRef = useRef(null);
+  const errorRef = useRef(null);
+
+  const changeModelProvider = (next) => {
+    setProvider(next);
+    setModel(next === "deepseek" ? "deepseek-chat" : "");
+    setBaseURL("");
+    setApiKey("");
+    setShowModelKey(false);
+  };
+
+  const changeVoiceProvider = (next) => {
+    setVoiceProvider(next);
+    if (next === "local") setAliyunApiKey("");
+    setShowVoiceKey(false);
+  };
 
   const submit = async (event) => {
     event.preventDefault();
@@ -957,13 +972,16 @@ function FirstRunSetup({ api, onComplete }) {
     if (!model.trim()) { setError("请输入模型名称"); modelRef.current?.focus(); return; }
     if (!apiKey.trim()) { setError("请输入模型服务 API Key"); apiKeyRef.current?.focus(); return; }
     if (provider === "custom") {
-      try { new URL(baseURL.trim()); } catch { setError("请输入完整的 Base URL，例如 https://example.com/v1"); baseURLRef.current?.focus(); return; }
+      try {
+        const parsed = new URL(baseURL.trim());
+        if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error();
+      } catch { setError("请输入完整的 HTTP 或 HTTPS Base URL，例如 https://example.com/v1"); baseURLRef.current?.focus(); return; }
     }
     if (voiceProvider === "aliyun" && !aliyunApiKey.trim()) { setError("请输入阿里云 DashScope API Key"); aliyunKeyRef.current?.focus(); return; }
     submitLockRef.current = true;
     setSaving(true);
     try {
-      savingStepRef.current = "正在保存语音配置";
+      savingStepRef.current = "第 1/2 步：正在保存语音配置";
       setSavingStep(savingStepRef.current);
       const voiceResponse = await fetch(`${api}/settings/voice`, {
         method: "POST",
@@ -977,7 +995,7 @@ function FirstRunSetup({ api, onComplete }) {
       const voiceData = await readJson(voiceResponse);
       if (!voiceResponse.ok || voiceData.ok === false) throw new Error(voiceData.error || "语音配置保存失败");
 
-      savingStepRef.current = "正在验证模型连接";
+      savingStepRef.current = "第 2/2 步：正在验证模型连接";
       setSavingStep(savingStepRef.current);
       const activationResponse = await fetch(`${api}/activate`, {
         method: "POST",
@@ -987,12 +1005,13 @@ function FirstRunSetup({ api, onComplete }) {
       });
       const activationData = await readJson(activationResponse);
       if (!activationResponse.ok || activationData.ok === false) throw new Error(activationData.error || "模型验证失败");
-      localStorage.setItem(VOICE_PROVIDER_KEY, voiceProvider);
+      try { localStorage.setItem(VOICE_PROVIDER_KEY, voiceProvider); } catch {}
       window.__JARVIS_VOICE_PROVIDER__ = voiceProvider;
       await onComplete();
     } catch (submitError) {
       const timedOut = submitError?.name === "TimeoutError" || submitError?.name === "AbortError";
-      setError(timedOut ? `${savingStepRef.current || "连接"}超时，请检查网络后重试` : (submitError.message || "初始化失败，请检查配置"));
+      setError(boundedFeedback(timedOut ? `${savingStepRef.current || "连接"}超时，请检查网络后重试` : submitError.message, "初始化失败，请检查配置"));
+      window.requestAnimationFrame(() => errorRef.current?.focus());
     } finally {
       submitLockRef.current = false;
       setSaving(false);
@@ -1003,18 +1022,18 @@ function FirstRunSetup({ api, onComplete }) {
 
   return (
     <section className="first-run-setup" aria-labelledby="first-run-title">
-      <form className="first-run-form" onSubmit={submit}>
+      <form className="first-run-form" onSubmit={submit} aria-busy={saving}>
         <header>
           <span>GDDXX-JARVIS</span>
           <h2 id="first-run-title">初始化</h2>
           <p>完成核心配置后进入工作台</p>
         </header>
 
-        <div className="first-run-section">
-          <strong>模型服务</strong>
+        <fieldset className="first-run-section" disabled={saving}>
+          <legend>模型服务</legend>
           <label className="field">
             <span>服务商</span>
-            <select value={provider} onChange={(event) => { const next = event.target.value; setProvider(next); setModel(next === "deepseek" ? "deepseek-chat" : ""); setBaseURL(""); }}>
+            <select value={provider} onChange={(event) => changeModelProvider(event.target.value)}>
               <option value="deepseek">DeepSeek</option>
               <option value="custom">兼容 OpenAI 的自定义服务</option>
             </select>
@@ -1033,16 +1052,16 @@ function FirstRunSetup({ api, onComplete }) {
               <input ref={baseURLRef} type="url" value={baseURL} onChange={(event) => setBaseURL(event.target.value)} placeholder="https://.../v1" required />
             </label>
           ) : null}
-        </div>
+        </fieldset>
 
-        <fieldset className="first-run-section voice-choice">
+        <fieldset className="first-run-section voice-choice" disabled={saving}>
           <legend>语音识别</legend>
           <label className={cls("voice-option", voiceProvider === "local" && "selected")}>
-            <input type="radio" name="voice-provider" value="local" checked={voiceProvider === "local"} onChange={() => setVoiceProvider("local")} />
+            <input type="radio" name="voice-provider" value="local" checked={voiceProvider === "local"} onChange={() => changeVoiceProvider("local")} />
             <span><strong>本地</strong><small>语音在电脑上处理，安装包已包含识别模型</small></span>
           </label>
           <label className={cls("voice-option", voiceProvider === "aliyun" && "selected")}>
-            <input type="radio" name="voice-provider" value="aliyun" checked={voiceProvider === "aliyun"} onChange={() => setVoiceProvider("aliyun")} />
+            <input type="radio" name="voice-provider" value="aliyun" checked={voiceProvider === "aliyun"} onChange={() => changeVoiceProvider("aliyun")} />
             <span><strong>阿里云</strong><small>使用 DashScope 实时语音识别</small></span>
           </label>
           {voiceProvider === "aliyun" ? (
@@ -1053,7 +1072,7 @@ function FirstRunSetup({ api, onComplete }) {
           ) : null}
         </fieldset>
 
-        {error ? <p className="first-run-error" role="alert">{error}</p> : null}
+        {error ? <p ref={errorRef} className="first-run-error" role="alert" tabIndex={-1}>{error}</p> : null}
         {savingStep ? <p className="first-run-progress" role="status" aria-live="polite">{savingStep}</p> : null}
         <button className="primary first-run-submit" type="submit" disabled={saving} aria-busy={saving}>
           {saving ? <Loader2 className="spin" size={17} /> : <ArrowRight size={17} />}
