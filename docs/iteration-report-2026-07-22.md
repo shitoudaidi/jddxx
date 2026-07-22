@@ -4,7 +4,7 @@
 
 - 本次在 21:00 前完成 11 轮迭代，每轮恰好发现并解决 10 个问题，共 110 个问题。
 - 问题范围严格限定在功能与审美，包括操作层级、状态表达、导航、首次配置、设置、消息动作、工程工作台、动效、可读性和发布质量门。
-- 产品代码在最终回归开始后冻结；源码检查、10 组 UI 契约、7 个布局场景、对话生命周期、真实本地 ASR、Windows 解包构建及打包版唤醒均通过。
+- 产品代码在最终回归开始后冻结；源码检查、10 组 UI 契约、7 个布局场景、对话生命周期、真实本地 ASR、Windows 解包构建、完整安装包及打包版唤醒均通过。
 - 所有实现均基于 GDDXX-Jarvis 自身结构和交互目标，没有复制“白龙马”的代码、品牌或界面身份。
 
 ## 迭代汇总
@@ -35,6 +35,7 @@
 | `npm run probe:turn-lifecycle` | 通过 | 正常完成、重复完成、取消、失败、工具调用与语音恢复均正确收束 |
 | `npm run probe:asr-real-audio` | 通过 | 本地 Whisper Tiny 成功启动、连接并输出最终文本 |
 | `npm run pack` | 通过 | Windows x64 解包产物包含品牌程序、本地 Python、ASR/TTS 模型和原生 SQLite，排除私有配置 |
+| `npm run dist` | 通过 | 生成 480,249,396 字节的引导式安装包；文件名、PE 头、blockmap、更新元数据、校验和及目录选择能力全部通过 |
 | `npm run probe:wake-sequence:packaged` | 通过 | 打包版品牌、版本、纯箭头手动入口、核心在线、唤醒和工作界面进入全部通过 |
 
 视觉证据位于 `.cache/layout-probe/`：
@@ -47,7 +48,7 @@
 - `jarvis-layout-conversation.png`
 - `jarvis-layout-engineering.png`
 
-完整最终检查日志位于 `.cache/final-check-2026-07-22.log` 和 `.cache/final-pack-2026-07-22.log`。
+完整最终检查日志位于 `.cache/final-check-2026-07-22.log`、`.cache/final-pack-2026-07-22.log` 和 `.cache/final-dist-2026-07-22.log`。完整安装包为 `dist/GDDXX-Jarvis-Windows-x64-Setup-0.3.0.exe`，SHA-256 为 `ab341b43e705236aa4005cf3d568bfdc3c69deb13264a0211279a99167ce62ac`。
 
 ## 提交记录
 
