@@ -2506,6 +2506,44 @@ aside.acui-result-layer[data-connected="true"] ~ .news-ticker {
   opacity: 0.72;
 }
 
+/* 2026-07-22: readable secondary telemetry without making it compete with primary content. */
+.app-shell.mode-active .header-clock span,
+.app-shell.mode-active .status-pill em,
+.app-shell.mode-active .terminal-empty span,
+.app-shell.mode-active .message-channel,
+.app-shell.mode-active .turn-owner time,
+.app-shell.mode-active .news-ticker-meta span,
+.app-shell.mode-active .news-external,
+.app-shell.mode-active .engineering-side-section > small,
+.app-shell.mode-active .engineering-prompt-count {
+  color: #8fa3ab;
+}
+
+@media (prefers-contrast: more) {
+  .app-shell.mode-active {
+    --ink-3: rgba(238, 247, 255, 0.78);
+  }
+
+  .app-shell.mode-active .hud-terminal,
+  .app-shell.mode-active .jarvis-workbench,
+  .app-shell.mode-active .intelligence-rail > section,
+  .app-shell.mode-active .command-dock {
+    border-color: #58727d;
+  }
+
+  .app-shell.mode-active .header-clock span,
+  .app-shell.mode-active .status-pill em,
+  .app-shell.mode-active .terminal-empty span,
+  .app-shell.mode-active .message-channel,
+  .app-shell.mode-active .turn-owner time,
+  .app-shell.mode-active .news-ticker-meta span,
+  .app-shell.mode-active .news-external,
+  .app-shell.mode-active .engineering-side-section > small,
+  .app-shell.mode-active .engineering-prompt-count {
+    color: #b8c7cd;
+  }
+}
+
 .engineering-truncated {
   display: block;
   padding: 8px 12px 0;
