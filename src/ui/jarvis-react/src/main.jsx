@@ -333,10 +333,10 @@ function useClock() {
   };
 }
 
-function StatusPill({ ok, label, detail, compact = false }) {
+function StatusPill({ ok, pending = false, label, detail, compact = false }) {
   return (
-    <div className={cls("status-pill", ok ? "ok" : "warn", compact && "compact")} title={`${label}：${detail || "暂无详情"}`}>
-      {ok ? <CheckCircle2 size={14} /> : <CircleAlert size={14} />}
+    <div className={cls("status-pill", pending ? "pending" : ok ? "ok" : "warn", compact && "compact")} title={`${label}：${detail || "暂无详情"}`} role="status" aria-live="polite" aria-busy={pending || undefined}>
+      {pending ? <Loader2 className="spin" size={14} /> : ok ? <CheckCircle2 size={14} /> : <CircleAlert size={14} />}
       <span>{label}</span>
       {detail ? <em>{detail}</em> : null}
     </div>
@@ -3107,14 +3107,14 @@ function App() {
         <div className="header-brand">
           <div className="brand-title">
             <span>LOCAL AGENT CONTROL ROOM</span>
-            <h1>JARVIS</h1>
+            <h1>GDDXX-JARVIS</h1>
           </div>
           <ClockReadout variant="header" />
         </div>
         <div className="header-status">
-          <StatusPill ok={connection.state === "online"} label="链路" detail={connection.detail} compact />
-          <StatusPill ok={coreReady} label="核心" detail={coreDetail} compact />
-          <StatusPill ok={!!caps.asr?.ready} label="语音" detail={voiceDetail} compact />
+          <StatusPill ok={connection.state === "online"} pending={connection.state === "connecting"} label="链路" detail={connection.detail} compact />
+          <StatusPill ok={coreReady} pending={activationPending} label="核心" detail={coreDetail} compact />
+          <StatusPill ok={!!caps.asr?.ready} pending={readinessPending} label="语音" detail={voiceDetail} compact />
         </div>
         <div className="header-tools">
           <div className="module-strip" aria-label="工作入口">
@@ -3128,14 +3128,8 @@ function App() {
             />)}
           </div>
           <div className="header-actions">
-          <button className={cls("icon-btn", musicEnabled && "active")} type="button" onClick={() => toggleAmbientMusic()} aria-pressed={musicEnabled} aria-label={musicEnabled ? "关闭背景音乐" : "开启背景音乐"} title={musicEnabled ? "关闭背景音乐" : "开启背景音乐"}>
-            {musicEnabled ? <Music2 size={18} /> : <VolumeX size={18} />}
-          </button>
-          <button className="icon-btn" type="button" disabled={refreshing} aria-busy={refreshing} onClick={() => refreshAll().then(loadConversations).catch(() => {})} aria-label="刷新状态">
+          <button className="icon-btn" type="button" disabled={refreshing} aria-busy={refreshing} onClick={() => refreshAll().then(loadConversations).catch(() => {})} aria-label="刷新状态" title="刷新状态">
             <RefreshCw className={cls(refreshing && "spin")} size={18} />
-          </button>
-          <button className="icon-btn" type="button" onClick={() => setDrawerOpen(true)} aria-label="打开设置">
-            <Settings2 size={18} />
           </button>
           </div>
         </div>
@@ -3222,7 +3216,7 @@ function App() {
         />
 
         <form
-          className={cls("command-dock", textInputOpen && "text-open", textInputExpanded && "multiline", sending && "turn-active")}
+          className={cls("command-dock", textInputOpen && "text-open", textInputExpanded && "multiline", sending && "turn-active", (visualState === "speaking" || latestJarvisText) && "has-replay")}
           aria-label="Jarvis 指令输入"
           onSubmit={(event) => {
             event.preventDefault();
@@ -3287,10 +3281,10 @@ function App() {
             {sending ? <Square size={16} fill="currentColor" /> : <Send size={17} />}
             <span className="sr-only">{sending ? "停止" : "发送"}</span>
           </button>
-          <button className="secondary replay" type="button" disabled={visualState !== "speaking" && (!latestJarvisText || sending)} aria-label={visualState === "speaking" ? "停止语音播报" : "重播上一条 Jarvis 回复"} title={visualState === "speaking" ? "停止播报" : "重播上一条回复"} onClick={visualState === "speaking" ? stopTTSPlayback : () => speakReply(latestJarvisText)}>
+          {visualState === "speaking" || latestJarvisText ? <button className="secondary replay" type="button" disabled={visualState !== "speaking" && sending} aria-label={visualState === "speaking" ? "停止语音播报" : "重播上一条 Jarvis 回复"} title={visualState === "speaking" ? "停止播报" : "重播上一条回复"} onClick={visualState === "speaking" ? stopTTSPlayback : () => speakReply(latestJarvisText)}>
             {visualState === "speaking" ? <Square size={15} fill="currentColor" /> : <Volume2 size={17} />}
             <span className="sr-only">{visualState === "speaking" ? "停止播报" : "重播"}</span>
-          </button>
+          </button> : null}
           <button className={cls("secondary", "music-command", musicEnabled && "active")} type="button" onClick={() => toggleAmbientMusic()} aria-pressed={musicEnabled} aria-label={musicEnabled ? "关闭背景音乐" : "开启背景音乐"} title={musicEnabled ? "关闭背景音乐" : "开启背景音乐"}>
             {musicEnabled ? <Music2 size={17} /> : <VolumeX size={17} />}
             <span className="sr-only">音乐</span>
