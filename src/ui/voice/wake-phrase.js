@@ -3,7 +3,9 @@ const STRONG_TOKENS = [
   "贾维斯", "加维斯", "扎维斯", "嘉维斯", "假维斯", "佳维斯", "家维斯",
   "杰维斯", "贾维思", "贾威斯", "贾伟思", "杰维思", "贾维丝", "贾维司",
   "佳伟斯", "家伟斯", "扎维丝", "扎维思", "扎维司", "炸维斯", "查维斯",
-  "贾维士", "加微斯", "佳微斯", "嘉微斯", "贾薇斯", "賈維斯"
+  "贾维士", "加微斯", "佳微斯", "嘉微斯", "贾薇斯", "賈維斯",
+  "贾维诗", "贾维史", "甲维斯", "假威斯", "加威斯", "贾韦斯", "加维思", "佳维思",
+  "jarves", "jarvice"
 ];
 
 const RISKY_TOKENS = ["jervis", "travis", "贾维", "加维", "嘉维", "扎维", "小贾", "海贾"];
@@ -37,7 +39,9 @@ export function isWakePhrase(value, { loose = false } = {}) {
 export const WAKE_PHRASE_FIXTURES = Object.freeze({
   accepted: [
     "嗨，贾维斯", "你好贾维斯", "早上好，贾维斯", "晚上好加微斯", "喂，扎维思",
-    "Hi Jarvis", "Hey Jervis", "Hello Travis", "贾维", "賈維斯"
+    "Hi Jarvis", "Hey Jervis", "Hello Travis", "贾维", "賈維斯",
+    "贾维诗", "贾维史", "甲维斯", "假威斯", "加威斯", "贾韦斯", "加维思", "佳维思",
+    "Hey Jarves", "Hello Jarvice"
   ],
   rejected: [
     "介绍一下 Travis Scott", "我刚才见到 Travis", "hello john", "这篇文章讲维斯塔", "嘉维是一位同事"

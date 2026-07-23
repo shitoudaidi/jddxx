@@ -88,6 +88,7 @@
     "probe:settings-scroll-flow-contract": "node scripts/probe-settings-scroll-flow-contract.cjs",
     "probe:settings-capture-contract": "node scripts/probe-settings-capture-contract.cjs",
     "probe:settings-dirty-state-contract": "node scripts/probe-settings-dirty-state-contract.cjs",
+    "probe:wake-variant-expansion-contract": "node scripts/probe-wake-variant-expansion-contract.cjs",
     "probe:tts-repeat": "node scripts/probe-tts-repeat.cjs",
     "rebuild:native": "node ./node_modules/electron-builder/cli.js install-app-deps",
     "rebuild:web": "npm rebuild better-sqlite3",
