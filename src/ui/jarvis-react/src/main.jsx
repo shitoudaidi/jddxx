@@ -740,6 +740,7 @@ function EngineeringConsole({ status, open, onClose, onRun, onCancel, onPermissi
   return (
     <section
       className="engineering-console"
+      role="region"
       aria-label="Grok Build 工程台"
     >
       <header className="engineering-header">
@@ -790,7 +791,7 @@ function EngineeringConsole({ status, open, onClose, onRun, onCancel, onPermissi
             <span>WORKSPACE <b>{workspace}</b></span>
             <span>STORAGE <b>H: ONLY</b></span>
           </div>
-          <nav className="engineering-tabs" aria-label="工程视图" role="tablist">
+          <nav className="engineering-tabs" aria-label="工程视图" role="tablist" aria-orientation="horizontal">
             {[['conversation','对话'],['plan','计划'],['changes','变更'],['terminal','终端']].map(([key, label], index, tabs) => <button key={key} type="button" role="tab" aria-selected={view === key} tabIndex={view === key ? 0 : -1} className={view === key ? "active" : ""} onClick={() => setView(key)} onKeyDown={(event) => {
               if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
               event.preventDefault();
@@ -801,31 +802,31 @@ function EngineeringConsole({ status, open, onClose, onRun, onCancel, onPermissi
             }}>{label}</button>)}
           </nav>
           <div className="engineering-body">
-            <div className="engineering-output" ref={outputRef} aria-live="polite" aria-busy={isRunning} onScroll={(event) => {
+            <div className="engineering-output" ref={outputRef} tabIndex={0} aria-live={isRunning ? "off" : "polite"} aria-busy={isRunning} onScroll={(event) => {
               const element = event.currentTarget;
               setFollowEngineeringOutput(element.scrollHeight - element.scrollTop - element.clientHeight < 40);
             }}>
               {view === "conversation" ? <>
-                {task?.prompt ? <div className="engineering-request"><span>任务</span><p>{task.prompt}</p></div> : null}
+                {task?.prompt ? <div className="engineering-request"><span>任务</span><p>{boundedFeedback(task.prompt, "工程任务")}</p></div> : null}
                 {task?.thought && isRunning ? <div className="engineering-thinking"><Loader2 className="spin" size={13} /><span>DeepSeek 正在分析与执行</span></div> : null}
                 {outputText ? <>{outputText.length > 50_000 ? <small className="engineering-truncated">仅显示最近 50,000 个字符</small> : null}<pre>{visibleOutput}</pre></> : <div className="engineering-empty"><Wrench size={28} /><strong>工程代理待命</strong><span>用于创建、修改、检查文件和运行工程任务</span></div>}
               </> : view === "plan" ? <div className="engineering-plan-view">{task?.plan?.length ? task.plan.map((step, i) => <div key={i}><b>{String(step.status || "pending").toUpperCase()}</b><span>{step.step || step.title || step.detail || String(step)}</span></div>) : <div className="engineering-empty"><ListTodo size={28} /><strong>等待 Agent 生成计划</strong><span>执行任务后，计划步骤会实时显示在这里</span></div>}</div>
                 : view === "changes" ? <div className="engineering-empty"><GitCompare size={28} /><strong>变更审阅</strong><span>{task?.output ? "请在任务输出中查看 Agent 汇总的文件变更；精确 diff 接入中" : "执行修改任务后，这里显示文件变更摘要"}</span></div>
                 : <div className="engineering-empty"><TerminalSquare size={28} /><strong>终端输出</strong><span>{task?.events?.length ? "命令执行事件已记录在右侧轨迹" : "Agent 运行命令后，终端事件会显示在右侧"}</span></div>}
-              {task?.error ? <div className="engineering-error"><CircleAlert size={14} /><span>{task.error}</span></div> : null}
+              {task?.error ? <div className="engineering-error"><CircleAlert size={14} /><span>{boundedFeedback(task.error, "工程任务失败")}</span></div> : null}
             </div>
             {!followEngineeringOutput ? <button className="engineering-jump-latest" type="button" onClick={() => { setFollowEngineeringOutput(true); outputRef.current?.scrollTo({ top: outputRef.current.scrollHeight, behavior: "smooth" }); }}><ChevronDown size={13} />最新输出</button> : null}
             <aside className="engineering-events" aria-label="执行轨迹">
               <span>EXECUTION TRACE</span>
               {(task?.events || []).slice(-9).reverse().map((item, index) => (
-                <div key={`${item.at}-${index}`}><i /><p><strong>{item.title || item.type}</strong>{item.detail ? <small>{item.detail}</small> : null}</p></div>
+                <div key={`${item.at}-${index}`}><i /><p><strong>{boundedFeedback(item.title || item.type, "执行事件")}</strong>{item.detail ? <small>{boundedFeedback(item.detail, "")}</small> : null}</p></div>
               ))}
               {!task?.events?.length ? <p className="engineering-events-empty">任务开始后在这里显示步骤</p> : null}
             </aside>
           </div>
 
           {task?.permission ? (
-            <div className="engineering-permission" role="alert">
+            <div className="engineering-permission" role="alert" aria-label="工程任务权限确认">
               <ShieldCheck size={18} />
               <div><strong>{task.permission.title}</strong><span>{task.permission.kind || "此操作会修改系统状态，请确认是否仅允许本次执行。"}</span></div>
               <button className="secondary" type="button" disabled={answeringPermission} onClick={() => answerPermission("reject")}>拒绝</button>
@@ -833,7 +834,7 @@ function EngineeringConsole({ status, open, onClose, onRun, onCancel, onPermissi
             </div>
           ) : null}
 
-          <form className="engineering-command" onSubmit={submit}>
+          <form className="engineering-command" onSubmit={submit} aria-label="工程任务输入" aria-busy={submitting || cancelling}>
             <textarea ref={promptRef} value={prompt} maxLength={4000} onChange={(event) => setPrompt(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} placeholder="描述要工程代理完成的任务" rows={2} disabled={isRunning} aria-describedby="engineering-prompt-count" />
             <small id="engineering-prompt-count" className={cls("engineering-prompt-count", prompt.length >= 3600 && "warn")}>{prompt.length}/4000</small>
             {isRunning ? (
