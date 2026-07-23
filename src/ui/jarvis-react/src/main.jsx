@@ -599,10 +599,13 @@ function MessageLine({ message, live }) {
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
   const reduceMotion = useReducedMotion();
+  const roleLabel = isUser ? "用户消息" : isSystem ? "系统消息" : "Jarvis 回复";
   const bilingual = !isUser && !isSystem ? splitBilingualReply(message.content) : null;
   return (
     <motion.article
       className={cls("message-line", isUser && "user", isSystem && "system", live && "live")}
+      aria-label={roleLabel}
+      aria-live={live ? "polite" : undefined}
       initial={reduceMotion ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.2, 0, 0, 1] }}
@@ -610,7 +613,7 @@ function MessageLine({ message, live }) {
       <div className="message-origin">
         <span>{isUser ? "你" : isSystem ? "系统" : "Jarvis"}</span>
         {message.channel ? <small>{message.channel}</small> : null}
-        {message.timestamp ? <time>{formatTime(message.timestamp)}</time> : null}
+        {message.timestamp ? <time dateTime={formatDateTimeAttribute(message.timestamp)} title={formatFullTime(message.timestamp)}>{formatTime(message.timestamp)}</time> : null}
       </div>
       {bilingual ? <BilingualMessageText content={message.content} /> : <p>{message.content}</p>}
     </motion.article>
