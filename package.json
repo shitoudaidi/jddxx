@@ -68,6 +68,7 @@
     "probe:packaged-experience": "node scripts/probe-packaged-experience-contract.cjs",
     "probe:installer": "node scripts/probe-installer-artifact.cjs",
     "check:ui-contracts": "node scripts/probe-2026-07-22-ui-contracts.cjs",
+    "check:2026-07-23-contracts": "node scripts/probe-2026-07-23-contracts.cjs",
     "probe:conversation-continuity-contract": "node scripts/probe-conversation-continuity-contract.cjs",
     "probe:control-state-contract": "node scripts/probe-control-state-contract.cjs",
     "probe:voice-surface-contract": "node scripts/probe-voice-surface-contract.cjs",
@@ -83,8 +84,8 @@
     "rebuild:web": "npm rebuild better-sqlite3",
     "postinstall": "node ./node_modules/electron-builder/cli.js install-app-deps",
     "verify:voice-bundle": "node scripts/probe-local-voice-bundle.cjs",
-    "pack": "npm run check && npm run check:ui-contracts && npm run verify:voice-bundle && node scripts/build.cjs --dir && node scripts/probe-packaged-runtime.cjs",
-    "dist": "npm run check && npm run check:ui-contracts && npm run verify:voice-bundle && node scripts/build.cjs --win nsis && npm run probe:installer"
+    "pack": "npm run check && npm run check:ui-contracts && npm run check:2026-07-23-contracts && npm run verify:voice-bundle && node scripts/build.cjs --dir && node scripts/probe-packaged-runtime.cjs",
+    "dist": "npm run check && npm run check:ui-contracts && npm run check:2026-07-23-contracts && npm run verify:voice-bundle && node scripts/build.cjs --win nsis && npm run probe:installer"
   },
   "dependencies": {
     "better-sqlite3": "^12.8.0",
