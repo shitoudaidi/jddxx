@@ -4695,6 +4695,19 @@ aside.acui-result-layer[data-connected="true"] ~ .news-ticker {
   .app-shell.mode-active .signal-tile { min-height: 40px; }
   .app-shell.mode-active .engineering-summary-body { gap: 5px; padding-block: 9px; }
   .app-shell.mode-active .agent-portrait .entity-vortex { transform: scale(0.72); }
+  .app-shell.mode-active .intelligence-rail > .news-ticker {
+    min-height: 184px; border-color: #294550; background: rgba(7, 15, 19, 0.98);
+    opacity: 1; visibility: visible; pointer-events: auto; transform: none; filter: none;
+  }
+  .app-shell.mode-active .news-ticker-head { min-height: 36px; padding-inline: 10px; border-bottom-color: #294550; }
+  .app-shell.mode-active .news-ticker-head > div:first-child { font-size: 10px; }
+  .app-shell.mode-active .news-ticker-head > div:first-child > small { font-size: 7px; }
+  .app-shell.mode-active .news-ticker-actions { gap: 3px; }
+  .app-shell.mode-active .news-ticker-actions .news-icon { width: 28px; height: 28px; }
+  .app-shell.mode-active .news-ticker-list { overflow-y: auto; scrollbar-width: thin; }
+  .app-shell.mode-active .news-ticker-item { padding: 8px 10px; }
+  .app-shell.mode-active .news-ticker-item p { font-size: 10px; line-height: 1.4; }
+  .app-shell.mode-active .news-ticker-meta { font-size: 8px; }
 }
 .terminal-cap-actions,
 .history-search {
