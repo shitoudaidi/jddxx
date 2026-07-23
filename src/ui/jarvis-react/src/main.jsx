@@ -397,8 +397,9 @@ function NewsTicker({ api }) {
     if (!api || loadingRef.current) return;
     loadingRef.current = true;
     setLoading(true);
+    setError("");
     try {
-      const response = await fetch(`${api}/ai-news`);
+      const response = await fetch(`${api}/ai-news`, { signal: AbortSignal.timeout(12_000) });
       const payload = await readJson(response);
       if (!response.ok || payload.ok === false) throw new Error(payload.error || "资讯源暂无数据");
       const next = (Array.isArray(payload.items) ? payload.items : []).map((row, rowIndex) => ({
@@ -449,7 +450,7 @@ function NewsTicker({ api }) {
       <header className="news-ticker-head">
         <div><Newspaper size={14} /><span>AI 新闻</span><small>AI NEWS</small></div>
         <div className="news-ticker-actions">
-          <small role="status" aria-live="polite">{stale ? "STALE" : error ? "OFFLINE" : updated}</small>
+          <small role="status" aria-live="polite">{loading ? "SYNCING" : stale ? "STALE" : error ? "OFFLINE" : updated}</small>
           {items.length > 1 ? <small className="news-position" aria-label={`第 ${index + 1} 条，共 ${items.length} 条`}>{index + 1}/{items.length}</small> : null}
           <button type="button" className="news-icon" onClick={() => setPaused((value) => !value)} disabled={items.length < 2} aria-label={paused ? "继续滚动资讯" : "暂停滚动资讯"} title={paused ? "继续滚动资讯" : "暂停滚动资讯"}>
             {paused ? <Play size={13} /> : <Pause size={13} />}
@@ -467,6 +468,8 @@ function NewsTicker({ api }) {
               target={item.url ? "_blank" : undefined}
               rel={item.url ? "noopener noreferrer" : undefined}
               aria-label={item.url ? `打开${item.label}：${item.title}` : undefined}
+              title={item.url ? `打开来源：${item.label}` : undefined}
+              aria-current={visibleIndex === 0 ? "true" : undefined}
               initial={reduceMotion ? false : { opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: reduceMotion ? 0 : 0.2, delay: reduceMotion ? 0 : visibleIndex * 0.03 }}
@@ -479,7 +482,7 @@ function NewsTicker({ api }) {
       ) : loading ? (
         <div className="news-skeleton" aria-label="正在加载 AI 新闻">{[0, 1, 2].map((row) => <i key={row}><span /><span /></i>)}</div>
       ) : (
-        <div className="news-ticker-empty"><Newspaper size={18} /><span>{error || "暂无可用资讯"}</span>{error ? <button type="button" onClick={load}>重新加载</button> : null}</div>
+        <div className="news-ticker-empty" role="status" aria-live="polite"><Newspaper size={18} /><span>{error || "暂无可用资讯"}</span>{error ? <button type="button" onClick={load} disabled={loading}>重新加载</button> : null}</div>
       )}
     </section>
   );
