@@ -2311,6 +2311,7 @@ function App() {
     ttsCurrentTextRef.current = "";
     currentSegmentRef.current = "";
     setVisualState((current) => current === "speaking" ? "idle" : current);
+    setVoiceStatusText("已停止播报，可继续对话");
     setAmbientMusicDucked(false);
   }, [clearTTSAudioGraph]);
 
@@ -2389,7 +2390,7 @@ function App() {
       const readinessRequest = apiFetch("/readiness", { timeoutMs: 5000 }).catch(() => readiness);
       setMessages((current) => [
         ...current,
-        { id: `wake-greeting-${Date.now()}`, role: "jarvis", content: wakeGreeting, channel: "WAKE" }
+        { id: `wake-greeting-${Date.now()}`, role: "jarvis", content: wakeGreeting, channel: "WAKE", timestamp: new Date().toISOString() }
       ]);
       if (musicEnabled) startAmbientMusic().catch(() => false);
       const transition = playWakeTransitionSfx().catch(() => false);
@@ -2414,7 +2415,7 @@ function App() {
       const reportAudio = prepareSpeechBlob(report, { cache: true });
       setMessages((current) => [
         ...current,
-        { id: `wake-check-${Date.now()}`, role: "jarvis", content: report, channel: "SYSTEM CHECK" }
+        { id: `wake-check-${Date.now()}`, role: "jarvis", content: report, channel: "SYSTEM CHECK", timestamp: new Date().toISOString() }
       ]);
       await speakReplyRef.current?.(report, {
         force: true,
@@ -2480,7 +2481,7 @@ function App() {
       { id: `wake-${Date.now()}`, role: "system", content: "Wake phrase accepted. Jarvis online.", channel: "WAKE", timestamp: new Date().toISOString() }
     ]);
     enterWorkbench({ listenAfter: false });
-    playWakeSequence().catch((error) => setLastError(error.message || "Wake sequence failed"));
+    playWakeSequence().catch((error) => setLastError(boundedFeedback(error?.message, "Wake sequence failed")));
     return true;
   }, [enterWorkbench, playWakeSequence]);
 
@@ -2517,11 +2518,16 @@ function App() {
     const text = plainSpeechText(spokenReplyText(rawText));
     if (!text) return false;
     if (/[\u3400-\u9fff]/.test(text)) {
+      setVisualState("alert");
+      setVoiceStatusText("当前语音引擎不支持这条播报");
       setLastError("语音回复缺少英文播报稿，已停止朗读中文字符。");
       return false;
     }
     const now = Date.now();
-    if (!options.force && lastSpokenTextRef.current === text && now - lastSpokenAtRef.current < SELF_ECHO_GUARD_MS) return false;
+    if (!options.force && lastSpokenTextRef.current === text && now - lastSpokenAtRef.current < SELF_ECHO_GUARD_MS) {
+      setVoiceStatusText("已忽略重复播报");
+      return false;
+    }
     rememberSpokenText(text);
 
     stopTTSPlayback();
@@ -2529,6 +2535,7 @@ function App() {
     ttsIsActiveRef.current = true;
     voiceBlockedUntilRef.current = Date.now() + VOICE_POST_TTS_BLOCK_MS;
     setVisualState("speaking");
+    setVoiceStatusText("Jarvis 正在播报");
     try { window.jarvisVoice?.suspendForTTS?.(); } catch {}
 
     return await new Promise((resolve) => {
@@ -2538,6 +2545,7 @@ function App() {
       const playbackTimeout = window.setTimeout(() => {
         speechAbort.abort();
         try { currentAudioRef.current?.pause?.(); } catch {}
+        setLastError("语音播报超时，已返回对话");
         finish(false);
       }, TTS_PLAYBACK_TIMEOUT_MS);
       const finish = (ok = false) => {
@@ -2554,6 +2562,7 @@ function App() {
         ttsCurrentTextRef.current = "";
         currentSegmentRef.current = "";
         setVisualState("idle");
+        if (!options.sequence) setVoiceStatusText(ok ? "播报完成，可继续对话" : "播报未完成，可继续对话");
         setAmbientMusicDucked(false);
         if (!options.sequence) markVoiceReadyForNextTurn("tts");
         voiceBlockedUntilRef.current = Date.now() + VOICE_POST_TTS_BLOCK_MS;
@@ -2583,7 +2592,7 @@ function App() {
           currentAudioUrlRef.current = audioUrl;
           ttsAudioGraphRef.current = graph;
           try { window.jarvisVoice?.setTTSAnalyser?.(graph?.analyser || null); } catch {}
-          audio.onended = () => finish(true); audio.onerror = () => finish(false);
+          audio.onended = () => finish(true); audio.onerror = () => { setLastError("语音音频无法播放，已返回对话"); finish(false); };
           await applyOutputSink(audio).catch(() => {});
           if (finished) return;
           await audio.play();
