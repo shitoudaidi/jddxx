@@ -19,7 +19,8 @@ const scripts = [
   'probe-compact-news-contract.cjs',
   'probe-layout-render-readiness-contract.cjs',
   'probe-settings-scroll-flow-contract.cjs',
-  'probe-settings-capture-contract.cjs'
+  'probe-settings-capture-contract.cjs',
+  'probe-settings-dirty-state-contract.cjs'
 ]
 
 const results = scripts.map((script) => {

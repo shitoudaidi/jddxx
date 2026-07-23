@@ -4733,6 +4733,8 @@ aside.acui-result-layer[data-connected="true"] ~ .news-ticker {
   background: rgba(7, 11, 16, 0.98);
 }
 
+.drawer-dirty { margin-left: auto; color: #e3b86c; font: 10px/1 var(--font-mono); }
+
 .drawer-section {
   flex: 0 0 auto;
   min-height: max-content;

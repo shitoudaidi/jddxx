@@ -1330,13 +1330,30 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
   const [aiHotFeedback, setAiHotFeedback] = useState({ text: "", type: "" });
   const drawerRef = useRef(null);
   const closeButtonRef = useRef(null);
+  const modelBaselineRef = useRef({ provider: "deepseek", model: "deepseek-v4-pro", baseURL: "" });
+  const aiHotBaselineRef = useRef({ endpoint: "https://aihot.virxact.com/api/public/items" });
+  const dirtyRef = useRef(false);
   const reduceMotion = useReducedMotion();
+  const modelDirty = provider !== modelBaselineRef.current.provider || model !== modelBaselineRef.current.model
+    || baseURL !== modelBaselineRef.current.baseURL || Boolean(apiKey.trim());
+  const aiHotDirty = aiHotEndpoint !== aiHotBaselineRef.current.endpoint || Boolean(aiHotApiKey.trim());
+  dirtyRef.current = modelDirty || aiHotDirty;
+  const requestClose = useCallback(() => {
+    if (dirtyRef.current && !window.confirm("设置尚未保存，确定关闭吗？")) return;
+    onClose();
+  }, [onClose]);
 
   useEffect(() => {
     if (!activation) return;
-    setProvider(activation.provider || "deepseek");
-    setModel(activation.model || activation.defaultModel || "deepseek-v4-pro");
-    setBaseURL(activation.baseURL || "");
+    const next = {
+      provider: activation.provider || "deepseek",
+      model: activation.model || activation.defaultModel || "deepseek-v4-pro",
+      baseURL: activation.baseURL || ""
+    };
+    modelBaselineRef.current = next;
+    setProvider(next.provider);
+    setModel(next.model);
+    setBaseURL(next.baseURL);
   }, [activation]);
 
   useEffect(() => {
@@ -1349,7 +1366,9 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
       })
       .then((data) => {
         if (!data?.aiHot) return;
-        setAiHotEndpoint(data.aiHot.endpoint || "https://aihot.virxact.com/api/public/items");
+        const nextEndpoint = data.aiHot.endpoint || "https://aihot.virxact.com/api/public/items";
+        aiHotBaselineRef.current = { endpoint: nextEndpoint };
+        setAiHotEndpoint(nextEndpoint);
         setAiHotKeyConfigured(Boolean(data.aiHot.apiKeyConfigured));
       })
       .catch((error) => setAiHotFeedback({ text: boundedFeedback(error.message, "无法读取 AI HOT 配置"), type: "error" }));
@@ -1357,7 +1376,7 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
     const onKeyDown = (event) => {
       if (event.key === "Escape" && !saving && !aiHotSaving) {
         event.preventDefault();
-        onClose();
+        requestClose();
         return;
       }
       if (event.key !== "Tab") return;
@@ -1385,7 +1404,7 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
       window.removeEventListener("keydown", onKeyDown);
       previousFocus?.focus?.();
     };
-  }, [api, onClose, open]);
+  }, [api, open, requestClose]);
 
   const saveModel = async () => {
     if (!provider.trim() || !model.trim()) {
@@ -1420,6 +1439,7 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
       const data = await readJson(response);
       if (!response.ok || data.ok === false) throw new Error(data.error || "保存失败");
       setApiKey("");
+      modelBaselineRef.current = { provider, model, baseURL };
       setFeedback({ text: "模型配置已保存", type: "success" });
       await refreshAll();
     } catch (error) {
@@ -1451,6 +1471,7 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
       const data = await readJson(response);
       if (!response.ok || data.ok === false) throw new Error(data.error || "保存失败");
       setAiHotApiKey("");
+      aiHotBaselineRef.current = { endpoint: aiHotEndpoint.trim() };
       setAiHotKeyConfigured(Boolean(data.aiHot?.apiKeyConfigured));
       setAiHotFeedback({ text: "AI HOT 资讯源已保存", type: "success" });
     } catch (error) {
@@ -1474,6 +1495,7 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
       const data = await readJson(response);
       if (!response.ok || data.ok === false) throw new Error(data.error || "清除失败");
       setAiHotApiKey("");
+      aiHotBaselineRef.current = { endpoint: aiHotEndpoint.trim() };
       setAiHotKeyConfigured(false);
       setAiHotFeedback({ text: "AI HOT 密钥已清除，当前使用公开接口", type: "success" });
     } catch (error) {
@@ -1486,7 +1508,7 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
   return (
     <React.Fragment>
       {open ? (
-        <div className="drawer-backdrop" onClick={(event) => { if (event.target === event.currentTarget && !saving && !aiHotSaving) onClose(); }}>
+        <div className="drawer-backdrop" onClick={(event) => { if (event.target === event.currentTarget && !saving && !aiHotSaving) requestClose(); }}>
         <motion.aside
           ref={drawerRef}
           className="drawer"
@@ -1503,7 +1525,8 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
               <span>Settings</span>
               <strong id="settings-drawer-title">模型与能力</strong>
             </div>
-            <button ref={closeButtonRef} className="icon-btn" type="button" onClick={onClose} disabled={saving || aiHotSaving} aria-label="关闭设置" title="关闭设置">
+            {modelDirty || aiHotDirty ? <small className="drawer-dirty" role="status">未保存</small> : null}
+            <button ref={closeButtonRef} className="icon-btn" type="button" onClick={requestClose} disabled={saving || aiHotSaving} aria-label="关闭设置" title="关闭设置">
               <X size={18} />
             </button>
           </div>
@@ -1546,7 +1569,7 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
               <span>Base URL</span>
               <input name="baseURL" type="url" inputMode="url" autoComplete="url" value={baseURL} onChange={(event) => setBaseURL(event.target.value)} placeholder="默认可留空" />
             </label>
-            <button className="primary wide" disabled={saving || !provider.trim() || !model.trim()} aria-busy={saving} type="submit">
+            <button className="primary wide" disabled={saving || !modelDirty || !provider.trim() || !model.trim()} aria-busy={saving} type="submit">
               {saving ? <Loader2 className="spin" size={16} /> : <KeyRound size={16} />}
               保存模型配置
             </button>
@@ -1583,7 +1606,7 @@ function SettingsDrawer({ open, onClose, activation, readiness, api, refreshAll 
               />
             </label>
             <p className="field-note">默认使用 AI HOT 官方公开接口，不需要 API Key。只有切换到需要鉴权的兼容接口时，才需要用户自行申请并填写密钥。</p>
-            <button className="secondary wide" disabled={aiHotSaving} aria-busy={aiHotSaving} onClick={saveAiHot} type="button">
+            <button className="secondary wide" disabled={aiHotSaving || !aiHotDirty} aria-busy={aiHotSaving} onClick={saveAiHot} type="button">
               {aiHotSaving ? <Loader2 className="spin" size={16} /> : <KeyRound size={16} />}
               保存 AI HOT 配置
             </button>
