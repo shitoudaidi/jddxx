@@ -1018,13 +1018,16 @@ async function runLayoutProbe() {
   const settings = await mainWindow.webContents.executeJavaScript(`
     (async () => {
       const waitFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      const opener = [...document.querySelectorAll(".module-link")].find((item) => item.textContent.includes("控制台"));
+      const opener = document.querySelector('.module-link[aria-haspopup="dialog"]');
       opener?.focus();
       opener?.click();
       await waitFrame();
+      await new Promise((resolve) => setTimeout(resolve, 180));
       const drawer = document.querySelector(".drawer");
       const backdrop = document.querySelector(".drawer-backdrop");
       const drawerRect = drawer?.getBoundingClientRect();
+      const drawerStyle = drawer ? getComputedStyle(drawer) : null;
+      const backdropStyle = backdrop ? getComputedStyle(backdrop) : null;
       const controlsInside = Boolean(drawerRect && [...drawer.querySelectorAll("input, select, button")].every((control) => {
         const rect = control.getBoundingClientRect();
         return rect.left >= drawerRect.left - 1 && rect.right <= drawerRect.right + 1;
@@ -1033,7 +1036,17 @@ async function runLayoutProbe() {
       const backdropCoversViewport = Boolean(backdropRect && backdropRect.left === 0 && backdropRect.top === 0 && backdropRect.right >= innerWidth && backdropRect.bottom >= innerHeight);
       const closeFocused = document.activeElement === drawer?.querySelector('[aria-label="关闭设置"]');
       const providerIsSelect = drawer?.querySelector('.field select')?.value === "deepseek";
-      return { ready: Boolean(drawer), controlsInside, backdropCoversViewport, closeFocused, providerIsSelect };
+      return {
+        ready: Boolean(drawer), openerFound: Boolean(opener), controlsInside, backdropCoversViewport,
+        drawerVisible: Boolean(drawerStyle && drawerStyle.visibility !== "hidden" && drawerStyle.display !== "none"),
+        drawerOpaque: Boolean(drawerStyle && Number(drawerStyle.opacity || 0) > 0.8),
+        backdropVisible: Boolean(backdropStyle && backdropStyle.visibility !== "hidden" && Number(backdropStyle.opacity || 0) > 0.5),
+        drawerHasDialogRole: drawer?.getAttribute("role") === "dialog",
+        drawerIsModal: drawer?.getAttribute("aria-modal") === "true",
+        drawerHasTitle: Boolean(drawer?.querySelector("#settings-drawer-title")),
+        drawerInViewport: Boolean(drawerRect && drawerRect.left >= 0 && drawerRect.right <= innerWidth && drawerRect.top >= 0 && drawerRect.bottom <= innerHeight),
+        closeFocused, providerIsSelect
+      };
     })();
   `, true);
   await new Promise((resolve) => setTimeout(resolve, 220));
@@ -1049,7 +1062,7 @@ async function runLayoutProbe() {
       return { drawerGone: !document.querySelector(".drawer"), focusRestored: document.activeElement?.classList.contains("module-link") || false };
     })();
   `, true);
-  snapshots.push({ id: "settings", requested: { width: 1380, height: 880 }, screenshot: settingsScreenshot, ok: Boolean(settings.ready && settings.controlsInside && settings.backdropCoversViewport && settings.closeFocused && settings.providerIsSelect && settingsCloseResult.drawerGone && settingsCloseResult.focusRestored), ...settings, ...settingsCloseResult });
+  snapshots.push({ id: "settings", requested: { width: 1380, height: 880 }, screenshot: settingsScreenshot, ok: Boolean(settings.ready && settings.openerFound && settings.drawerVisible && settings.drawerOpaque && settings.backdropVisible && settings.drawerHasDialogRole && settings.drawerIsModal && settings.drawerHasTitle && settings.drawerInViewport && settings.controlsInside && settings.backdropCoversViewport && settings.closeFocused && settings.providerIsSelect && settingsCloseResult.drawerGone && settingsCloseResult.focusRestored), ...settings, ...settingsCloseResult });
 
   const firstRun = await mainWindow.webContents.executeJavaScript(`
     (async () => {

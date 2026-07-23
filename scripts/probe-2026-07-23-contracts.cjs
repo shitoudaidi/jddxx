@@ -14,7 +14,8 @@ const scripts = [
   'probe-message-surface-contract.cjs',
   'probe-visual-hierarchy-contract.cjs',
   'probe-turn-cleanup-contract.cjs',
-  'probe-minimum-window-contract.cjs'
+  'probe-minimum-window-contract.cjs',
+  'probe-settings-visual-contract.cjs'
 ]
 
 const results = scripts.map((script) => {
