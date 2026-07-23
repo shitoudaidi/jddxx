@@ -974,11 +974,11 @@ function AgentPortrait({ state, voiceStatusText, sending, mode, audioLevel = 0 }
         <div className="entity-waveform" aria-hidden="true" />
         <div className="entity-matte" />
         <div className="entity-aurora" aria-hidden="true" />
-        <div id="voice-panel" className="voice-panel">
-          <canvas id="voice-canvas" width="360" height="360" />
+        <div id="voice-panel" className="voice-panel" role="group" aria-label="语音交互状态">
+          <canvas id="voice-canvas" width="360" height="360" aria-hidden="true" />
           <div className="voice-readout">
-            <span id="voice-status">{voiceStatusText}</span>
-            <span id="voice-transcript" />
+            <span id="voice-status" role="status" aria-live="polite">{voiceStatusText}</span>
+            <span id="voice-transcript" role="log" aria-live="polite" aria-atomic="false" />
           </div>
         </div>
       </motion.div>
