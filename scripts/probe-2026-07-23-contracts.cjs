@@ -12,7 +12,8 @@ const scripts = [
   'probe-tts-continuity-contract.cjs',
   'probe-reduced-motion-contract.cjs',
   'probe-message-surface-contract.cjs',
-  'probe-visual-hierarchy-contract.cjs'
+  'probe-visual-hierarchy-contract.cjs',
+  'probe-turn-cleanup-contract.cjs'
 ]
 
 const results = scripts.map((script) => {

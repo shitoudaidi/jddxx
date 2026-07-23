@@ -2632,6 +2632,9 @@ function App() {
     submitLockRef.current = false;
     clearReplyPoll();
     setSending(false);
+    turnStartedAtRef.current = 0;
+    setTurnElapsedSeconds(0);
+    setLastError("");
     setVisualState("idle");
     reloadAfterEvent();
     if ((options.voice ?? turn.voice ?? lastVoiceTurnRef.current) && text) {
@@ -2650,6 +2653,8 @@ function App() {
     visibleStreamRef.current = false;
     clearReplyPoll();
     setSending(false);
+    turnStartedAtRef.current = 0;
+    setTurnElapsedSeconds(0);
     setVisualState("alert");
     setLastError(message || "运行时错误");
     if (restoreDraft && turn?.content) {
@@ -2669,6 +2674,8 @@ function App() {
     clearReplyPoll();
     setMessages((current) => current.filter((item) => item.id !== "live"));
     setSending(false);
+    turnStartedAtRef.current = 0;
+    setTurnElapsedSeconds(0);
     setVisualState("idle");
     setDraft(turn.content || "");
     setTextInputOpen(true);
@@ -2698,6 +2705,10 @@ function App() {
       pollInFlightRef.current = true;
       try {
         const rows = await loadConversations({ commit: false });
+        if (pollFailureRef.current) {
+          pollFailureRef.current = 0;
+          setLastError("");
+        }
         const reply = rows.find((row) => row.role === "jarvis" && Number(row.id) > afterId);
         if (reply) {
           setMessages(rows);
@@ -2798,8 +2809,9 @@ function App() {
     const channel = fromVoice ? "语音识别" : "TUI";
     const afterId = maxMessageIdRef.current;
     const turnToken = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const optimisticMessageId = `local-${turnToken}`;
     submitLockRef.current = true;
-    activeTurnRef.current = { token: turnToken, afterId, voice: fromVoice, content, completed: false };
+    activeTurnRef.current = { token: turnToken, afterId, voice: fromVoice, content, optimisticMessageId, completed: false };
     visibleStreamRef.current = false;
     lastVoiceTurnRef.current = fromVoice;
     turnStartedAtRef.current = Date.now();
@@ -2812,7 +2824,7 @@ function App() {
     setMessages((current) => [
       ...current,
       {
-        id: `local-${Date.now()}`,
+        id: optimisticMessageId,
         role: "user",
         content,
         channel,
@@ -2827,8 +2839,16 @@ function App() {
         submitLockRef.current = false;
         lastVoiceTurnRef.current = false;
         clearReplyPoll();
+        setMessages((current) => current.filter((item) => item.id !== optimisticMessageId));
         setSending(false);
+        turnStartedAtRef.current = 0;
+        setTurnElapsedSeconds(0);
         setVisualState("idle");
+        if (!fromVoice) {
+          setDraft(content);
+          setTextInputOpen(true);
+          window.requestAnimationFrame(() => inputRef.current?.focus());
+        }
         setVoiceStatusText("已忽略重复语音，点击麦克风继续");
         if (fromVoice) schedulePostReplyListen();
         refreshAll().catch(() => {});
